@@ -70,6 +70,8 @@ Model tier follows reversal cost — the same gradient that drives verification 
 
 The conductor itself stays on the session's model. If the harness offers no per-dispatch model choice, skip this section — correctness rules above still apply unchanged.
 
+Allocation is **announced, not silent** — harness UIs do not show a subagent's model, so the run's own records are where the user sees who works at what tier. Every dispatch announcement names the assigned tier, and the `run.md` step line carries it alongside the verification tier, e.g. `[>] 3.2 implementing — mid-tier (sonnet)` / `[x] 3.2 verified (fresh, high-tier)`.
+
 ## Execution loop
 
 Serial by default: implement → verify → fix → next step. (Reversal-cost-proportional verification keeps cheap steps fast, so serial costs little.)
