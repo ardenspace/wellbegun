@@ -20,8 +20,8 @@ Translate the approved begin document into the solution space: resolve the expen
 
 For every entry in begin.md's queue:
 
-1. Grade it with `references/reversibility-grades.md` (S/M/L/XL — by reversal cost, not importance).
-2. Decide it, and record a mini-ADR (3–4 lines: decision, why, and for L/XL the rejected alternative) in `.wellbegun/decisions.md` using the standard line format.
+1. Grade it with `${CLAUDE_PLUGIN_ROOT}/references/reversibility-grades.md` (S/M/L/XL — by reversal cost, not importance).
+2. Decide it, and record a mini-ADR in `.wellbegun/decisions.md` — one line per the mini-ADR line format in that same reference (the format already carries decision, why, and the rejected alternative for L/XL).
 3. **L/XL entries require at least two compared alternatives** before deciding. S/M entries take one minute and one line.
 
 Who decides: the agent proposes, records, and moves on — the user reviews every L/XL choice (with its rejected alternative) at Handoff before approving. Two exceptions that go to the user immediately, not at Handoff: an entry that turns out *product-shaped* (pricing, account model, data ownership — it escaped wellbegin's bundle 5), and an XL where the compared alternatives are genuinely close.
@@ -30,7 +30,7 @@ If grading reveals an entry is actually S — it happens — say so and move it 
 
 ## Step 2: Define the global registries
 
-Instantiate the four templates from `references/registry-templates/` as **markdown rosters only**:
+Instantiate the four templates from `${CLAUDE_PLUGIN_ROOT}/references/registry-templates/` as **markdown rosters only**:
 
 - **Design tokens** — translate bundle 6's product character into named tokens with concrete values (this is where "warm, like Linear" becomes `color.accent: #...`).
 - **Shared components** — the minimal named set the core journey needs.
@@ -45,7 +45,7 @@ Add an explicit `## Implementer discretion` section listing what is *deliberatel
 
 ## Step 4: Enforcement plan
 
-Decide which checks from `references/hooks/` apply and where they will be wired (PostToolUse hook, pre-commit, or both — see that folder's README). Write the choices down here; **installation itself becomes a phase 1 step in wellplan**, not an action taken now.
+Decide which checks from `${CLAUDE_PLUGIN_ROOT}/references/hooks/` apply and where they will be wired (PostToolUse hook, pre-commit, or both — see that folder's README). Write the choices down here; **installation itself becomes a phase 1 step in wellplan**, not an action taken now.
 
 ## Output template
 

@@ -12,7 +12,7 @@ You can't ship a perfect MVP, and you shouldn't try. But decisions are not equal
 
 ## How it works
 
-Four lenses, one pipeline — planning → spec → plan → run:
+Four lenses, one pipeline — begin → spec → plan → run:
 
 - **Begin (user lens).** Shapes the MVP in user language: whose problem, one core journey, success criteria, explicit non-goals. Expensive *product* decisions (account model, multi-tenancy, pricing unit) get decided here; expensive *technical* decisions get flagged and queued — not solved.
 - **Spec (developer lens).** Resolves the queued decisions with a reversal-cost grade (S/M/L/XL) and a short rationale. Defines the global registries: design tokens, shared components, backend common layers, schema. Cheap decisions are deliberately left blank — marked "implementer's discretion."
@@ -39,7 +39,7 @@ In Claude Code:
 | `wellplan` | Plan | `.wellbegun/plan.md` with step contracts |
 | `wellrun` | Run | executed steps, ADR entries, `.wellbegun/pending/` stops |
 
-Each artifact carries `status: draft` → `status: approved` frontmatter; every skill gates on its predecessor being approved, so the pipeline's state lives on disk, not in conversation memory.
+The three pipeline artifacts (`begin.md`, `spec.md`, `plan.md`) carry `status: draft` → `status: approved` frontmatter, and every skill gates on its predecessor being approved — the pipeline's state lives on disk, not in conversation memory. The run adds `run.md` (step-by-step running state) and the `pending/` mailbox, whose file existence itself means "a decision is owed."
 
 ## Status
 

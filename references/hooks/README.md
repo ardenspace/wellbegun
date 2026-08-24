@@ -9,7 +9,7 @@ The two reference checks:
 
 ## Wiring option 1: Claude Code PostToolUse hook
 
-Runs after every file edit during a run; the failing output lands directly in the agent's context, so drift is corrected the moment it happens. In the target project's `.claude/settings.json`:
+Runs after every file edit during a run. The scripts print violations to **stderr and exit 2** — for PostToolUse hooks that is the combination Claude Code feeds back into the agent's context, so drift is corrected the moment it happens (a plain exit 1 would only show the user a message). In the target project's `.claude/settings.json`:
 
 ```json
 {

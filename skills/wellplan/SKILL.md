@@ -14,6 +14,7 @@ Turn the approved spec into a phase > step structure where every step carries a 
 - `.wellbegun/spec.md` missing or not `status: approved` → stop and route to wellspec.
 - `.wellbegun/plan.md` with `status: approved` → route to wellrun.
 - `.wellbegun/plan.md` with `status: draft` → resume.
+- `.wellbegun/plan.md` missing → this skill applies: write `plan.md` from the output template with `status: draft` **now**, before decomposing, and fill it in as you go — disk is the anchor.
 
 ## Phase decomposition
 
@@ -23,7 +24,8 @@ Turn the approved spec into a phase > step structure where every step carries a 
 2. Design tokens → the actual token file
 3. Shared components → the minimal set, as real (even if skeletal) components
 4. Backend common layers → error envelope, auth, logging in code
-5. Enforcement hooks from the spec's enforcement plan → installed and passing (adapt `references/hooks/` scripts to the stack chosen here)
+5. Enforcement hooks from the spec's enforcement plan → installed and passing (adapt `${CLAUDE_PLUGIN_ROOT}/references/hooks/` scripts to the stack chosen here)
+6. Read-first enforcement → each area's registry roster placed next to its code, and that area's CLAUDE.md created (or extended) to say "read the roster before working here" — this is what makes wellrun's rule 2 machine-backed instead of hoped-for
 
 Why this order is non-negotiable: expensive decisions are cheapest to fix before code piles on top of them, and once the foundations exist, every subsequent step begins as "reuse the existing common element" instead of "improvise and clean up later."
 

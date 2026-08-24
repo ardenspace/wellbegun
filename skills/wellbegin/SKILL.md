@@ -37,18 +37,18 @@ Observable form only: something you could watch happen or count. "Users like it"
 The list of features being deliberately thrown away. Closes when the list contains at least one thing that was genuinely tempting.
 
 ### 5. Expensive product-identity decisions
-Account model, multi-tenancy, pricing unit, data ownership, platform. These are XL-grade doors that belong to the *product*, so they are **decided here**, in user language, with the user. Record each as a decision, not an aspiration.
+Account model, multi-tenancy, pricing unit, data ownership, platform. These are XL-grade doors that belong to the *product*, so they are **decided here**, in user language, with the user. Record each as a decision, not an aspiration. Closes when each of the five areas has either a recorded decision or an explicit "not applicable to this product."
 
 ### 6. Product character and tone
-Feel, mood, reference products — user language only. Concrete values (hex codes, font names) are the token registry's job in wellspec; if concrete values come up, park them in the queue.
+Feel, mood, reference products — user language only. Concrete values (hex codes, font names) are the token registry's job in wellspec; if concrete values come up, park them in the queue. Closes when the character is captured concretely enough to hand to wellspec: at least one reference product or a set of feel-words the user has confirmed.
 
 ### 7. Tech-smelling expensive decisions
-Anything that smells like an expensive *technical* decision — storage shape, realtime vs polling, offline behavior — gets **flagged into the queue and left unsolved**. Solving it here burns conversation time on the wrong lens and without the developer-lens tools (grades, alternatives).
+Anything that smells like an expensive *technical* decision — storage shape, realtime vs polling, offline behavior — gets **flagged into the queue and left unsolved**. Solving it here burns conversation time on the wrong lens and without the developer-lens tools (grades, alternatives). Closes when every smell surfaced in the conversation has a queue entry — it never blocks on solving any of them.
 
 ## Closing a bundle
 
 Before closing any bundle:
-1. Check its status-table row for uncovered probe angles from `references/probe-angles.md` (empty first screen, day one without data, leave and return, unintended use, the receiving end of sharing).
+1. Check its status-table row for uncovered probe angles from `${CLAUDE_PLUGIN_ROOT}/references/probe-angles.md` (empty first screen, day one without data, leave and return, unintended use, the receiving end of sharing).
 2. Fire the uncovered ones. Probe depth is adaptive — dig only where answers look thin.
 3. Only an explicit user "move on" closes a bundle with uncovered angles, and the skip is recorded in the table.
 

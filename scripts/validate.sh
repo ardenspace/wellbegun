@@ -12,6 +12,8 @@ for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json; do
 done
 name=$(python3 -c 'import json;print(json.load(open(".claude-plugin/plugin.json"))["name"])' 2>/dev/null)
 [ "${name:-}" = "wellbegun" ] || err "plugin.json name is '${name:-}', expected 'wellbegun'"
+mname=$(python3 -c 'import json;print(json.load(open(".claude-plugin/marketplace.json"))["plugins"][0]["name"])' 2>/dev/null)
+[ "${mname:-}" = "${name:-}" ] || err "marketplace.json plugin name '${mname:-}' does not match plugin.json '${name:-}'"
 
 # 2. Each skill dir has SKILL.md with matching name and a "Use when" description.
 for d in skills/*/; do

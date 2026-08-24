@@ -68,13 +68,14 @@ The four rules, enforced on every step:
 1. **Enforcement check** — done at briefing; hooks must be installed by the end of phase 1 and stay green.
 2. **Read the registry first** — the implementer reads the area rosters named in contract item 4 before touching that area.
 3. **Common-element rule** — on the roster → reuse it. Not on the roster but shared-shaped → create it in the common folder **and update the roster in the same commit**. "Hardcode now, clean up later" is forbidden — that cleanup is the debt this plugin exists to prevent.
-4. **Hidden expensive decisions** — when an implementer hits a decision the spec didn't cover, the roles split: the **implementer** grades it (`references/reversibility-grades.md`). S/M → the implementer decides, records one ADR line, and continues. L/XL → the implementer reports the decision (situation, options it sees) back to the conductor and ends its turn; the **conductor** re-grades, and in companion mode writes the pending file and halts the step. Partial work stays in the working tree; on resume, the conductor dispatches a **fresh** implementer with the same contract plus the recorded decision.
+4. **Hidden expensive decisions** — when an implementer hits a decision the spec didn't cover, the roles split: the **implementer** grades it (`${CLAUDE_PLUGIN_ROOT}/references/reversibility-grades.md`). S/M → the implementer decides, records one ADR line, and continues. L/XL → the implementer reports the decision (situation, options it sees) back to the conductor and ends its turn; the **conductor** re-grades and acts by mode. Companion: write the pending file and halt the step. Autonomous: the conductor picks the *most reversible* option, records it in `decisions.md` marked `provisional`, adds it to the end-of-run report, and re-dispatches. Either way, partial work stays in the working tree and resumption means a **fresh** implementer with the same contract plus the recorded decision.
 
 ## Verification
 
 - **basic tier:** lint + the contract's boundary tests pass. That's it — spending fresh-eyes effort on an S step inverts the plugin's premise.
 - **fresh tier:** a context-isolated verifier with an adversarial charter: *"find the reason this fails."* The verifier runs the contract's boundary tests **and has the authority to write new probe tests of its own** — the contract is the floor, not the ceiling.
-- Three verification layers across the run: per-step verification → phase integration verification (do the slices compose?) → whole-run fresh-eyes review before final acceptance.
+- Three verification layers across the run: per-step verification → phase integration verification → whole-run fresh-eyes review before final acceptance.
+- **Phase integration** runs after a phase's last step passes: a fresh verifier receives the phase's row from the plan's Phases table (what the phase delivers), the diff of the whole phase, and the run commands — charter: walk the delivered slice end to end and find where the steps fail to compose. Mark the phase done in `run.md` only after this passes.
 
 A failed verification returns the verdict to the conductor; the conductor dispatches a fix (same contract, findings attached) and re-verifies. Findings travel as *facts about the code*, never as the previous implementer's narrative — and they go to the **fixing implementer only**. Re-verification always means a **new** fresh verifier that receives the standard four inputs and nothing about the previous round; a verifier that knows the old findings only checks the old findings.
 
@@ -100,7 +101,7 @@ Reply with the option number (or your own choice). The answer gets recorded
 in decisions.md and this file is deleted; the run resumes at the stopped step.
 ```
 
-Push notification on stop is the user's choice of channel, wired via the harness's Notification hook — see `references/hooks/README.md`. Documented, never forced.
+Push notification on stop is the user's choice of channel, wired via the harness's Notification hook — see `${CLAUDE_PLUGIN_ROOT}/references/hooks/README.md`. Documented, never forced.
 
 ## Run completion
 
