@@ -1,0 +1,79 @@
+---
+name: wellspec
+description: "Use when .wellbegun/begin.md has status: approved and no approved spec exists yet, or when .wellbegun/spec.md is still a draft. Developer lens of the wellbegun pipeline (wellbegin → wellspec → wellplan → wellrun)."
+---
+
+# wellspec — the developer lens
+
+Translate the approved begin document into the solution space: resolve the expensive-decision queue with reversal-cost grades, define the global registries as markdown rosters, and — just as deliberately — leave the cheap decisions blank. The output is `.wellbegun/spec.md`.
+
+**Core principle:** effort is proportional to reversal cost. A spec that is dense everywhere is as wrong as a spec that is thin everywhere. Dense at the one-way doors, silent at the two-way doors — that asymmetry *is* the spec.
+
+## Guard
+
+- `.wellbegun/begin.md` missing or not `status: approved` → stop and route to wellbegin.
+- `.wellbegun/spec.md` with `status: approved` → route to wellplan.
+- `.wellbegun/spec.md` with `status: draft` → resume where the draft stops.
+
+## Step 1: Resolve the expensive decision queue
+
+For every entry in begin.md's queue:
+
+1. Grade it with `references/reversibility-grades.md` (S/M/L/XL — by reversal cost, not importance).
+2. Decide it, and record a mini-ADR (3–4 lines: decision, why, and for L/XL the rejected alternative) in `.wellbegun/decisions.md` using the standard line format.
+3. **L/XL entries require at least two compared alternatives** before deciding. S/M entries take one minute and one line.
+
+If grading reveals an entry is actually S — it happens — say so and downgrade it to implementer discretion (step 3). The queue coming in expensive does not oblige you to treat it as expensive.
+
+## Step 2: Define the global registries
+
+Instantiate the four templates from `references/registry-templates/` as **markdown rosters only**:
+
+- **Design tokens** — translate bundle 6's product character into named tokens with concrete values (this is where "warm, like Linear" becomes `color.accent: #...`).
+- **Shared components** — the minimal named set the core journey needs.
+- **Backend common layers** — error envelope, auth, logging (and pagination if lists exist).
+- **DB schema** — entities and ownership sketch.
+
+Timing rule: rosters only. The real files (token file, component stubs, migrations) are created in wellplan's phase 1, after the stack is fixed. A spec that writes code has jumped its lens.
+
+## Step 3: Leave cheap decisions blank
+
+Add an explicit `## Implementer discretion` section listing what is *deliberately* unspecified — internal state shapes, helper structure, non-shared endpoint details, copy tone. This section is the plugin's signature, not an omission: it tells the run's implementers where they are free, so they neither wait for permission nor invent constraints.
+
+## Step 4: Enforcement plan
+
+Decide which checks from `references/hooks/` apply and where they will be wired (PostToolUse hook, pre-commit, or both — see that folder's README). Write the choices down here; **installation itself becomes a phase 1 step in wellplan**, not an action taken now.
+
+## Output template
+
+`.wellbegun/spec.md`:
+
+```markdown
+---
+status: draft
+---
+
+# <project> — spec
+
+## Resolved decisions
+<!-- one row per former queue entry -->
+| decision | grade | choice | ADR |
+|---|---|---|---|
+| <question> | L | <choice> | see decisions.md 2026-08-24 |
+
+## Registries
+### Design tokens
+### Shared components
+### Backend common layers
+### DB schema
+
+## Implementer discretion
+- <deliberately unspecified area>
+
+## Enforcement plan
+- <check> wired as <PostToolUse / pre-commit / both>, adapted how
+```
+
+## Handoff
+
+Show the user the finished spec — walk them through the L/XL choices and their rejected alternatives, since those are the doors that cannot be cheaply reopened. On approval, flip to `status: approved` and invoke **wellplan**.
