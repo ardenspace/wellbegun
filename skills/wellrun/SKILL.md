@@ -59,6 +59,17 @@ Before the first step (and again when resuming):
 
 The verifier is never given the implementer's narrative, summary, or self-assessment. Not as a convenience, not "for context."
 
+### Model allocation
+
+Model tier follows reversal cost — the same gradient that drives verification intensity. When the harness lets a dispatch choose the subagent's model, the conductor assigns:
+
+- **Implementer on S/M steps** — a mid-tier model. The contract already carries the decisions; the work is mechanical, and this is where most of the run's tokens go.
+- **Implementer on steps whose run-preview row touches L/XL decisions** — a high-tier model.
+- **Basic-tier verification** — no subagent at all when the conductor can run the lint and boundary-test commands itself; otherwise the lowest tier.
+- **Fresh verifiers, phase integration, and the whole-run review** — a high-tier model, always. Adversarial verification is the pipeline's core value; economizing here inverts the premise.
+
+The conductor itself stays on the session's model. If the harness offers no per-dispatch model choice, skip this section — correctness rules above still apply unchanged.
+
 ## Execution loop
 
 Serial by default: implement → verify → fix → next step. (Reversal-cost-proportional verification keeps cheap steps fast, so serial costs little.)
