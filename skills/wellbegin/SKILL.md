@@ -21,6 +21,7 @@ Check `.wellbegun/begin.md` first:
 - Problem space only. If you catch yourself discussing frameworks, schemas, or endpoints, stop — that content becomes a queue entry (bundle 7), not a conversation.
 - Scope is controlled by discipline — success criteria, non-goals, the MVP cut — never by pulling the developer lens forward.
 - This is a conversation, not a questionnaire. Ask what the answers so far make interesting; use the bundles as a completeness check, not a script. On the first turn, open with bundle 1 (whose problem) unless the user's opening message already answers it — then start from whatever it left open.
+- This lens **is** the idea-shaping stage of the pipeline. If the environment carries other idea-shaping or planning skills (e.g. Superpowers' brainstorming skill), do not invoke them while this skill is active — double-running a stage corrupts it.
 
 ## The seven bundles
 
