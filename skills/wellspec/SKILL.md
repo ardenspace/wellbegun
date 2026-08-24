@@ -13,7 +13,7 @@ Translate the approved begin document into the solution space: resolve the expen
 
 - `.wellbegun/begin.md` missing or not `status: approved` → stop and route to wellbegin.
 - `.wellbegun/spec.md` with `status: approved` → route to wellplan.
-- `.wellbegun/spec.md` with `status: draft` → resume where the draft stops.
+- `.wellbegun/spec.md` with `status: draft` → resume where the draft stops. If the draft marks a question as `open — asked user`, re-ask it before doing anything else: an interruption never converts a user question into an agent decision.
 - `.wellbegun/spec.md` missing → this skill applies: write `spec.md` from the output template with `status: draft` **now**, before step 1, and fill it in as the steps run — disk is the anchor.
 
 ## Step 1: Resolve the expensive decision queue
@@ -24,7 +24,7 @@ For every entry in begin.md's queue:
 2. Decide it, and record a mini-ADR in `.wellbegun/decisions.md` — one line per the mini-ADR line format in that same reference (the format already carries decision, why, and the rejected alternative for L/XL).
 3. **L/XL entries require at least two compared alternatives** before deciding. S/M entries take one minute and one line.
 
-Who decides: the agent proposes, records, and moves on — the user reviews every L/XL choice (with its rejected alternative) at Handoff before approving. Two exceptions that go to the user immediately, not at Handoff: an entry that turns out *product-shaped* (pricing, account model, data ownership — it escaped wellbegin's bundle 5), and an XL where the compared alternatives are genuinely close.
+Who decides: the agent proposes, records, and moves on — the user reviews every L/XL choice (with its rejected alternative) at Handoff before approving. Until that approval, every recorded L/XL line is a **proposal**, however confident its wording in `decisions.md` looks. Two exceptions that go to the user immediately, not at Handoff: an entry that turns out *product-shaped* (pricing, account model, data ownership — it escaped wellbegin's bundle 5), and an XL where the compared alternatives are genuinely close. When an exception puts a question to the user, mark that queue entry `open — asked user` in the draft spec; only the user's answer closes it (see Guard — an interrupted session must re-ask, never self-answer).
 
 If grading reveals an entry is actually S — it happens — say so and move it to the `## Implementer discretion` section (step 3). It gets **no row** in the Resolved decisions table and no ADR line; the table holds M and above. The queue coming in expensive does not oblige you to treat it as expensive.
 
@@ -79,4 +79,6 @@ status: draft
 
 ## Handoff
 
-Show the user the finished spec — walk them through the L/XL choices and their rejected alternatives, since those are the doors that cannot be cheaply reopened. On approval, flip to `status: approved` and invoke **wellplan**.
+Show the user the finished spec, then confirm the L/XL choices **one at a time, each as a choice question** — proposed choice vs. rejected alternative, with the one-clause why for each. These are the doors that cannot be cheaply reopened; a table the user scrolls past is not a review. Do not present them as a batch-approval document, and do not use closed-verdict wording ("decided", "rejected") for anything the user has not yet confirmed — the `rejected:` clause in the ADR line is a comparison record, not a verdict. M-and-below stay in the table for passive review; they need no per-item question.
+
+If an answer overturns a proposal, update the spec table and the ADR line before moving on. Only after every L/XL is confirmed, flip to `status: approved` and invoke **wellplan**.
