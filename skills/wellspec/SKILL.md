@@ -14,6 +14,7 @@ Translate the approved begin document into the solution space: resolve the expen
 - `.wellbegun/begin.md` missing or not `status: approved` → stop and route to wellbegin.
 - `.wellbegun/spec.md` with `status: approved` → route to wellplan.
 - `.wellbegun/spec.md` with `status: draft` → resume where the draft stops.
+- `.wellbegun/spec.md` missing → this skill applies: write `spec.md` from the output template with `status: draft` **now**, before step 1, and fill it in as the steps run — disk is the anchor.
 
 ## Step 1: Resolve the expensive decision queue
 
@@ -23,7 +24,9 @@ For every entry in begin.md's queue:
 2. Decide it, and record a mini-ADR (3–4 lines: decision, why, and for L/XL the rejected alternative) in `.wellbegun/decisions.md` using the standard line format.
 3. **L/XL entries require at least two compared alternatives** before deciding. S/M entries take one minute and one line.
 
-If grading reveals an entry is actually S — it happens — say so and downgrade it to implementer discretion (step 3). The queue coming in expensive does not oblige you to treat it as expensive.
+Who decides: the agent proposes, records, and moves on — the user reviews every L/XL choice (with its rejected alternative) at Handoff before approving. Two exceptions that go to the user immediately, not at Handoff: an entry that turns out *product-shaped* (pricing, account model, data ownership — it escaped wellbegin's bundle 5), and an XL where the compared alternatives are genuinely close.
+
+If grading reveals an entry is actually S — it happens — say so and move it to the `## Implementer discretion` section (step 3). It gets **no row** in the Resolved decisions table and no ADR line; the table holds M and above. The queue coming in expensive does not oblige you to treat it as expensive.
 
 ## Step 2: Define the global registries
 
@@ -56,7 +59,7 @@ status: draft
 # <project> — spec
 
 ## Resolved decisions
-<!-- one row per former queue entry -->
+<!-- one row per queue entry resolved at grade M or above; S-downgrades go to Implementer discretion instead -->
 | decision | grade | choice | ADR |
 |---|---|---|---|
 | <question> | L | <choice> | see decisions.md 2026-08-24 |

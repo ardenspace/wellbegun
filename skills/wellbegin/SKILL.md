@@ -14,13 +14,13 @@ Shape the MVP entirely in **user language**: whose problem, one core journey, ob
 Check `.wellbegun/begin.md` first:
 - `status: approved` → do not restart the conversation. Route to wellspec.
 - `status: draft` → resume from its status table: reopen the bundles with uncovered angles or open questions.
-- missing → create `.wellbegun/` and start fresh from the template below.
+- missing → create `.wellbegun/` and write `begin.md` from the template below **immediately, before the conversation starts** — disk is the anchor from the first turn, and an empty status table is what makes resumption possible.
 
 ## Stance
 
 - Problem space only. If you catch yourself discussing frameworks, schemas, or endpoints, stop — that content becomes a queue entry (bundle 7), not a conversation.
 - Scope is controlled by discipline — success criteria, non-goals, the MVP cut — never by pulling the developer lens forward.
-- This is a conversation, not a questionnaire. Ask what the answers so far make interesting; use the bundles as a completeness check, not a script.
+- This is a conversation, not a questionnaire. Ask what the answers so far make interesting; use the bundles as a completeness check, not a script. On the first turn, open with bundle 1 (whose problem) unless the user's opening message already answers it — then start from whatever it left open.
 
 ## The seven bundles
 

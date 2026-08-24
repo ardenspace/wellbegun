@@ -21,9 +21,29 @@ Four lenses, one pipeline — planning → spec → plan → run:
 
 Composable by design: wellbegun owns the pipeline but delegates implementation techniques to whatever your environment provides (e.g. Superpowers' TDD and debugging skills).
 
+## Install
+
+In Claude Code:
+
+```
+/plugin marketplace add ardenspace/wellbegun
+/plugin install wellbegun@wellbegun
+```
+
+## Skills
+
+| skill | lens | artifact it produces |
+|---|---|---|
+| `wellbegin` | Begin (user) | `.wellbegun/begin.md` + expensive decision queue |
+| `wellspec` | Spec (developer) | `.wellbegun/spec.md` + `.wellbegun/decisions.md` |
+| `wellplan` | Plan | `.wellbegun/plan.md` with step contracts |
+| `wellrun` | Run | executed steps, ADR entries, `.wellbegun/pending/` stops |
+
+Each artifact carries `status: draft` → `status: approved` frontmatter; every skill gates on its predecessor being approved, so the pipeline's state lives on disk, not in conversation memory.
+
 ## Status
 
-Design phase. The full design document lives in [`docs/`](docs/) (Korean). Implementation is next.
+Implemented; dogfooding on a real project is next. The full design document lives in [`docs/`](docs/) (Korean).
 
 ## License
 
