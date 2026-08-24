@@ -27,4 +27,4 @@ Design phase. The full design document lives in [`docs/`](docs/) (Korean). Imple
 
 ## License
 
-TBD
+MIT

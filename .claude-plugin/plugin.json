@@ -1,0 +1,21 @@
+{
+  "name": "wellbegun",
+  "description": "MVP pipeline that spends attention only on hard-to-reverse decisions: begin (user lens), spec (reversal-cost grades + global registries), plan (foundation-first contracts), run (fresh-eyes verification scaled by reversal cost).",
+  "version": "0.1.0",
+  "author": {
+    "name": "ardenspace",
+    "email": "ardensdevspace@gmail.com"
+  },
+  "homepage": "https://github.com/ardenspace/wellbegun",
+  "repository": "https://github.com/ardenspace/wellbegun",
+  "license": "MIT",
+  "keywords": [
+    "mvp",
+    "reversibility",
+    "one-way-door",
+    "planning",
+    "pipeline",
+    "registry",
+    "verification"
+  ]
+}

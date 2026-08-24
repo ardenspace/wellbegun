@@ -1,0 +1,14 @@
+{
+  "name": "wellbegun",
+  "owner": {
+    "name": "ardenspace",
+    "email": "ardensdevspace@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "wellbegun",
+      "source": "./",
+      "description": "MVP pipeline that spends attention only on hard-to-reverse decisions."
+    }
+  ]
+}
