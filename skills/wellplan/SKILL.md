@@ -5,7 +5,7 @@ description: "Use when .wellbegun/spec.md has status: approved and no approved p
 
 # wellplan — foundation-first planning
 
-Turn the approved spec into a phase > step structure where every step carries a contract written **before any implementation exists**. The output is `.wellbegun/plan.md`. This lens **is** the plan-writing stage of the pipeline: if the environment carries other plan-writing skills (e.g. Superpowers' writing-plans skill), do not invoke them while this skill is active — double-running a stage corrupts it.
+Turn the approved spec into a phase > step structure where every step carries a contract written **before any implementation exists**. The output is `.wellbegun/plan.md`. This lens **is** the plan-writing stage of the pipeline: if the environment carries other plugins' plan-writing skills, do not invoke them while this skill is active — double-running a stage corrupts it.
 
 **Core principle:** materialize the hard-to-reverse foundations first, while changing them is still cheap. Every later step then starts in a world where the shared thing already exists — and reusing it is easier than hardcoding around it.
 

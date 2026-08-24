@@ -13,7 +13,7 @@ Execute the approved plan with subagents: implementers build against step contra
 
 While a run is active, **this skill is the conductor**. The main session reads the plan, dispatches steps in order, receives results, and never writes code itself.
 
-Superpowers, if present, is a toolbox for the *implementation technique layer only*: implementer subagents may use its test-driven-development, systematic-debugging, and verification-before-completion skills. The planning-layer skills from Superpowers (its brainstorming and writing-plans skills) are **never invoked during a run** — the pipeline already did that work, and double-running a stage corrupts it.
+Skills provided by other plugins in the environment are a toolbox for the *implementation technique layer only*: implementer subagents may use technique skills such as test-driven development, systematic debugging, or pre-completion verification. Other plugins' planning-layer skills (brainstorming, spec-writing, plan-writing) are **never invoked during a run** — the pipeline already did that work, and double-running a stage corrupts it.
 
 ## Guard
 
