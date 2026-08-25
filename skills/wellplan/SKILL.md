@@ -51,6 +51,8 @@ Item 5 is **derived, not chosen**: take the highest reversibility grade among th
 
 Item 3 exists because of timing: acceptance tests written *after* implementation inherit the implementation's blind spots. The plan is the last moment the tests can be honest.
 
+Item 3 self-check, per step: every file or command the boundary tests reference must be created by an earlier step or by the step itself — a test that presumes a later step's output cannot run when its turn comes.
+
 ## Output template
 
 `.wellbegun/plan.md`:
