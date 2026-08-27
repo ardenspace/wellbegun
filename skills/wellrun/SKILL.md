@@ -22,19 +22,21 @@ Skills provided by other plugins in the environment are a toolbox for the *imple
 
 ## Running state — `.wellbegun/run.md`
 
-The conductor's durable memory. Created at the first briefing, updated after **every** step transition, so a new session (or a return hours later) can resume from disk alone:
+The conductor's durable memory **and the run's audit ledger**. Created at the first briefing, updated after **every** step transition, so a new session (or a return hours later) can resume from disk alone — and a third party can re-check any verification from `run.md` plus the step contract alone:
 
 ```markdown
 ---
 mode: companion
 ---
-- [x] 1.1 verified (basic)
-- [x] 1.2 verified (fresh)
-- [>] 1.3 stopped → pending/auth-model.md
-- [ ] 1.4
+- [x] 1.1 verified (basic) — boundary tests exit 0
+- [x] 1.2 verified (fresh, high-tier) — boundary tests exit 0; probes: 3 written, 2 committed (test/theme_scope_probe_test.dart); findings: none
+- [x] 1.3 verified (fresh, high-tier) — round 1 FAIL: theme lost under nested scopes → fix dispatched; round 2 pass; probes: 1 committed
+- [x] phase 1 integration verified (fresh, high-tier) — round 1 FAIL: 1.2's tokens unread by 1.3's widget (owner: 1.3) → fixed; round 2 pass
+- [>] 2.1 stopped → pending/auth-model.md
+- [ ] 2.2
 ```
 
-One line per step: `[x]` verified, `[>]` in progress or stopped (with the pending file when stopped), `[ ]` not started.
+One line per step: `[x]` verified, `[>]` in progress or stopped (with the pending file when stopped), `[ ]` not started. A `verified` line is incomplete without its record: boundary-test result, probes written/committed (fresh tier), and findings with how each was resolved — failed rounds included. Facts about the code, one line per step; `run.md` is read by the conductor and the user, and is never among a verifier's inputs.
 
 ## Start briefing
 
@@ -90,9 +92,9 @@ The four rules, enforced on every step:
 - **Regression runs are the conductor's job.** Before dispatching a fresh verifier, the conductor runs the project's full test suite itself and puts the command and its result in the dispatch — a fact about the code, not a narrative. The verifier spends its context on what only it can do (adversarial probes), while keeping the authority to re-run anything it distrusts.
 - **Passed probes become assets.** After its verification round passes, the verifier may commit its probes into the test directory as regression tests: new test files only, never edits to existing files (the rule that verifiers don't modify target code stands), and skip probes that duplicate already-committed ones. Committed probes join the conductor's regression run, so each phase's verification starts on top of the last one's work instead of from scratch.
 - Three verification layers across the run: per-step verification → phase integration verification → whole-run fresh-eyes review before final acceptance.
-- **Phase integration** runs after a phase's last step passes: a fresh verifier receives the phase's row from the plan's Phases table (what the phase delivers), the diff of the whole phase, and the run commands — charter: walk the delivered slice end to end and find where the steps fail to compose. Mark the phase done in `run.md` only after this passes.
+- **Phase integration** runs after a phase's last step passes: a fresh verifier receives the phase's row from the plan's Phases table (what the phase delivers), the diff of the whole phase, and the run commands — charter: walk the delivered slice end to end and find where the steps fail to compose. On failure, the flow is the step flow: the conductor attributes each finding to the step that owns the broken piece, dispatches a fix under **that step's contract** (findings attached, as facts about the code), then re-runs phase integration with a **new** fresh verifier. The phase's `run.md` line records the findings, their owning steps, and the rounds. Mark the phase done in `run.md` only after this passes.
 
-A failed verification returns the verdict to the conductor; the conductor dispatches a fix (same contract, findings attached) and re-verifies. Findings travel as *facts about the code*, never as the previous implementer's narrative — and they go to the **fixing implementer only**. Re-verification always means a **new** fresh verifier that receives the standard four inputs and nothing about the previous round; a verifier that knows the old findings only checks the old findings.
+A failed verification returns the verdict to the conductor; the conductor dispatches a fix (same contract, findings attached) and re-verifies. Findings travel as *facts about the code*, never as the previous implementer's narrative — and they go to the **fixing implementer only**. Re-verification always means a **new** fresh verifier that receives the standard four inputs and nothing about the previous round; a verifier that knows the old findings only checks the old findings. Every round leaves its trace on the step's `run.md` line — the finding and its resolution — so the ledger shows what failed and was fixed, not just that the step eventually passed.
 
 ## Stop UX — the pending mailbox
 
