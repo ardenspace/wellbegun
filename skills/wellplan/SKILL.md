@@ -41,7 +41,7 @@ A step is: **one subagent, one context window, machine-checkable completion.** I
 ### Step <phase>.<n>: <name>
 1. **Goal:** <one line>
 2. **Acceptance criteria:** <observable sentences — things a verifier can watch or run>
-3. **Boundary tests:** <the test list, fixed NOW, before implementation; the verifier will run exactly these>
+3. **Boundary tests:** <executable commands with expected exit codes, fixed NOW, before implementation; the verifier will run exactly these>
 4. **Registries to read:** <which area rosters this step must read first>
 5. **Verification tier:** fresh | basic
 6. **Discretion scope:** <the spec's discretion items that apply to this step>
@@ -50,6 +50,8 @@ A step is: **one subagent, one context window, machine-checkable completion.** I
 Item 5 is **derived, not chosen**: take the highest reversibility grade among the decisions this step touches — L/XL → `fresh` (context-isolated verifier subagent), S/M → `basic` (lint + boundary tests). Phase 1 steps touch L/XL foundations almost by definition; expect `fresh` there.
 
 Item 3 exists because of timing: acceptance tests written *after* implementation inherit the implementation's blind spots. The plan is the last moment the tests can be honest.
+
+Item 3's form matters as much as its timing: each test is an executable command with an expected exit code (`flutter analyze` → exit 0, `bash scripts/hooks/check-envelope.sh missing-field.json` → exit 2). Prose tests get translated into commands at dispatch time, and translation is where interpretation leaks into an otherwise isolated verifier. A test that can't be written as a command is the step-sizing signal in disguise: the step isn't machine-checkable yet — split or re-specify it.
 
 Item 3 self-check, per step: every file or command the boundary tests reference must be created by an earlier step or by the step itself — a test that presumes a later step's output cannot run when its turn comes.
 
