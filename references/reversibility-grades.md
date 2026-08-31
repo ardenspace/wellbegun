@@ -33,3 +33,26 @@ Examples:
 ```
 
 The `rejected:` clause is required for L/XL (the spec lens compares alternatives at those grades) and omitted for S/M.
+
+## Overturning a decision (supersede)
+
+The ledger is append-only: an overturned decision is marked, never deleted — "why we chose otherwise back then" is evidence for the next overturn. Two edits, always together:
+
+- The new line carries `supersedes: [YYYY-MM-DD] <short-slug>` naming the line it replaces.
+- The overturned line gets ` (superseded YYYY-MM-DD)` appended at its end.
+
+```
+- [2026-08-24] [XL] account model: none — ship without accounts, team choice stays on device (superseded 2026-09-01)
+- [2026-09-01] [XL] account model: email + OAuth login — badges and likes need identity across devices; supersedes: [2026-08-24] account-model; rejected: device-only storage (cannot sync or recover)
+```
+
+A cycle that overturns an identity decision or a non-goal MUST record the supersede pair, and the current cycle's `begin.md` must state the new decision — the top-level begin.md is always the current answer sheet; the archive is history.
+
+## The L/XL index
+
+To keep rare expensive decisions findable in a growing ledger, `decisions.md` is structured in two sections:
+
+- `## L/XL index` at the top — one line per **currently valid** L/XL decision, pointing at its ledger line by date and slug.
+- `## Ledger (append-only, chronological)` below — every line ever recorded, in order, with `## cycle N` subheaders marking cycle boundaries.
+
+Update the index in the same edit whenever an L/XL decision lands or is superseded: a superseded L/XL leaves the index (its replacement enters), so the index never lists dead decisions.
