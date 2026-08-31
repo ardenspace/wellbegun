@@ -1,6 +1,6 @@
 ---
 name: wellbegin
-description: "Use when starting a new wellbegun project or shaping a raw MVP idea, or when a later cycle's delta begin is in draft (begin.md with cycle: N frontmatter, seeded by wellnext). First lens of the wellbegun pipeline (wellbegin → wellspec → wellplan → wellrun)."
+description: "Use when starting a new wellbegun project or shaping a raw MVP idea, or when .wellbegun/begin.md is still a draft — a first-cycle begin or a later cycle's delta begin seeded by wellnext. First lens of the wellbegun pipeline (wellbegin → wellspec → wellplan → wellrun)."
 ---
 
 # wellbegin — the user lens

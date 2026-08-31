@@ -53,6 +53,6 @@ A cycle that overturns an identity decision or a non-goal MUST record the supers
 To keep rare expensive decisions findable in a growing ledger, `decisions.md` is structured in two sections:
 
 - `## L/XL index` at the top — one line per **currently valid** L/XL decision, pointing at its ledger line by date and slug.
-- `## Ledger (append-only, chronological)` below — every line ever recorded, in order, with `## cycle N` subheaders marking cycle boundaries.
+- `## Ledger (append-only, chronological)` below — every line ever recorded, in order, with `## cycle N` headers marking cycle boundaries.
 
 Update the index in the same edit whenever an L/XL decision lands or is superseded: a superseded L/XL leaves the index (its replacement enters), so the index never lists dead decisions.

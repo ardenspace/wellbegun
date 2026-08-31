@@ -12,7 +12,7 @@ You can't ship a perfect MVP, and you shouldn't try. But decisions are not equal
 
 ## How it works
 
-Four lenses, one pipeline — begin → spec → plan → run:
+Four lenses and a cycle gate, one pipeline — begin → spec → plan → run, then next between cycles:
 
 - **Begin (user lens).** Shapes the MVP in user language: whose problem, one core journey, success criteria, explicit non-goals. Expensive *product* decisions (account model, multi-tenancy, pricing unit) get decided here; expensive *technical* decisions get flagged and queued — not solved.
 - **Spec (developer lens).** Resolves the queued decisions with a reversal-cost grade (S/M/L/XL) and a short rationale. Defines the global registries: design tokens, shared components, backend common layers, schema. Cheap decisions are deliberately left blank — marked "implementer's discretion."
