@@ -18,6 +18,7 @@ Four lenses, one pipeline — begin → spec → plan → run:
 - **Spec (developer lens).** Resolves the queued decisions with a reversal-cost grade (S/M/L/XL) and a short rationale. Defines the global registries: design tokens, shared components, backend common layers, schema. Cheap decisions are deliberately left blank — marked "implementer's discretion."
 - **Plan.** Foundation first: phase 1 turns the registries into real code while changing them is still cheap. Every step gets a contract written *before* implementation exists — acceptance criteria, boundary tests, verification tier.
 - **Run.** Subagent-driven execution with fresh-eyes verification: verifiers get the contract and the diff, never the implementer's narrative — blind spots travel through shared context, so the context is what gets isolated. Verification intensity scales with reversal cost. Registry rules are enforced by hooks and linters, not by hoping the model remembers.
+- **Next (cycle gate).** When a finished project takes on its next chunk of work, `wellnext` reopens the pipeline: it audits the registries against the actual code (drift, enforcement health, duplication worth promoting), proposes an entry point by rule — overturning an identity decision or adding a new user journey means entering at begin; extending existing journeys means entering at spec — and, once you confirm, archives the finished cycle into `cycles/NN/` and seeds the next one. Decisions overturned along the way are superseded in the ledger, never erased.
 
 Composable by design: wellbegun owns the pipeline but delegates implementation techniques to whatever your environment provides (e.g. Superpowers' TDD and debugging skills).
 
@@ -38,8 +39,9 @@ In Claude Code:
 | `wellspec` | Spec (developer) | `.wellbegun/spec.md` + `.wellbegun/decisions.md` |
 | `wellplan` | Plan | `.wellbegun/plan.md` with step contracts |
 | `wellrun` | Run | executed steps, ADR entries, `.wellbegun/pending/` stops |
+| `wellnext` | Next (cycle gate) | `.wellbegun/audit.md`, `cycles/NN/` archive, seeded next-cycle artifacts |
 
-The three pipeline artifacts (`begin.md`, `spec.md`, `plan.md`) carry `status: draft` → `status: approved` frontmatter, and every skill gates on its predecessor being approved — the pipeline's state lives on disk, not in conversation memory. The run adds `run.md` (step-by-step running state) and the `pending/` mailbox, whose file existence itself means "a decision is owed."
+The three pipeline artifacts (`begin.md`, `spec.md`, `plan.md`) carry `status: draft` → `status: approved` frontmatter, and every skill gates on its predecessor being approved — the pipeline's state lives on disk, not in conversation memory. The run adds `run.md` (step-by-step running state) and the `pending/` mailbox, whose file existence itself means "a decision is owed." The pipeline is re-enterable: top-level `.wellbegun/` files always describe the current cycle, finished cycles live untouched in `cycles/NN/`, and `decisions.md` spans all cycles as an append-only ledger where overturned decisions are marked superseded, never deleted.
 
 ## Status
 
