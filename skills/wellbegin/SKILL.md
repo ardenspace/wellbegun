@@ -55,16 +55,6 @@ Before closing any bundle:
 
 Bundle-specific closing conditions are stated in each bundle above; they are not optional.
 
-## Delta mode (cycle: N > 1)
-
-When begin.md's frontmatter carries `cycle: N` with N > 1 (seeded by wellnext), the subject is this cycle's **delta**, not the whole product. Bundle density shifts; nothing else does — probe angles, closing conditions, and the status table apply unchanged.
-
-- **Bundle 1 (whose problem)** — inheritance check: confirm the previous cycle's answer still holds for the new work; reopen fully only if the new work serves a different user or moment.
-- **Bundles 2–4 (journey, success criteria, non-goals)** — full density, scoped to the new work. The new journeys' failure branches live here; this is why large-but-identity-safe work still enters at begin.
-- **Bundle 5 (product identity)** — list the previous cycle's decisions, then discuss **only the ones this cycle overturns**. Every overturn is recorded per the supersede format in `${CLAUDE_PLUGIN_ROOT}/references/reversibility-grades.md`, and begin.md keeps the **full current list** of identity decisions — the top-level begin.md is always the current answer sheet; nobody should walk the archive to learn the current identity.
-- **Bundle 6 (character and tone)** — inherit and confirm; reopen only if the new work changes how the product should feel.
-- **Bundle 7 (tech queue)** — unchanged: every tech smell in the delta conversation gets a queue entry.
-
 ## Status table
 
 Keep this table inside `begin.md` and update it as you go — disk is the anchor, not conversation memory:
@@ -76,6 +66,16 @@ Keep this table inside `begin.md` and update it as you go — disk is the anchor
 | 2 core journey | empty first screen | leave and return | what does retry look like? |
 | ... | | | |
 ```
+
+## Delta mode (cycle: N > 1)
+
+When begin.md's frontmatter carries `cycle: N` with N > 1 (seeded by wellnext), the subject is this cycle's **delta**, not the whole product. Bundle density shifts; nothing else does — probe angles, closing conditions, and the status table apply unchanged.
+
+- **Bundle 1 (whose problem)** — inheritance check: confirm the previous cycle's answer still holds for the new work; reopen fully only if the new work serves a different user or moment.
+- **Bundles 2–4 (journey, success criteria, non-goals)** — full density, scoped to the new work. The new journeys' failure branches live here; this is why large-but-identity-safe work still enters at begin.
+- **Bundle 5 (product identity)** — list the previous cycle's decisions, then discuss **only the ones this cycle overturns**. Every overturn is recorded per the supersede format in `${CLAUDE_PLUGIN_ROOT}/references/reversibility-grades.md`, and begin.md keeps the **full current list** of identity decisions — the top-level begin.md is always the current answer sheet; nobody should walk the archive to learn the current identity.
+- **Bundle 6 (character and tone)** — inherit and confirm; reopen only if the new work changes how the product should feel.
+- **Bundle 7 (tech queue)** — unchanged: every tech smell in the delta conversation gets a queue entry.
 
 ## Output template
 
