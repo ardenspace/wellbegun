@@ -1,6 +1,6 @@
 ---
 name: wellbegin
-description: "Use when starting a new wellbegun project or shaping a raw MVP idea — before any spec, plan, or code exists, or when .wellbegun/begin.md is still a draft. First lens of the wellbegun pipeline (wellbegin → wellspec → wellplan → wellrun)."
+description: "Use when starting a new wellbegun project or shaping a raw MVP idea, or when a later cycle's delta begin is in draft (begin.md with cycle: N frontmatter, seeded by wellnext). First lens of the wellbegun pipeline (wellbegin → wellspec → wellplan → wellrun)."
 ---
 
 # wellbegin — the user lens
@@ -54,6 +54,16 @@ Before closing any bundle:
 3. Only an explicit user "move on" closes a bundle with uncovered angles, and the skip is recorded in the table.
 
 Bundle-specific closing conditions are stated in each bundle above; they are not optional.
+
+## Delta mode (cycle: N > 1)
+
+When begin.md's frontmatter carries `cycle: N` with N > 1 (seeded by wellnext), the subject is this cycle's **delta**, not the whole product. Bundle density shifts; nothing else does — probe angles, closing conditions, and the status table apply unchanged.
+
+- **Bundle 1 (whose problem)** — inheritance check: confirm the previous cycle's answer still holds for the new work; reopen fully only if the new work serves a different user or moment.
+- **Bundles 2–4 (journey, success criteria, non-goals)** — full density, scoped to the new work. The new journeys' failure branches live here; this is why large-but-identity-safe work still enters at begin.
+- **Bundle 5 (product identity)** — list the previous cycle's decisions, then discuss **only the ones this cycle overturns**. Every overturn is recorded per the supersede format in `${CLAUDE_PLUGIN_ROOT}/references/reversibility-grades.md`, and begin.md keeps the **full current list** of identity decisions — the top-level begin.md is always the current answer sheet; nobody should walk the archive to learn the current identity.
+- **Bundle 6 (character and tone)** — inherit and confirm; reopen only if the new work changes how the product should feel.
+- **Bundle 7 (tech queue)** — unchanged: every tech smell in the delta conversation gets a queue entry.
 
 ## Status table
 
