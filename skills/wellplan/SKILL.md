@@ -27,6 +27,8 @@ Turn the approved spec into a phase > step structure where every step carries a 
 5. Enforcement hooks from the spec's enforcement plan → installed and passing (adapt `${CLAUDE_PLUGIN_ROOT}/references/hooks/` scripts to the stack chosen here)
 6. Read-first enforcement → each area's registry roster placed next to its code, and that area's CLAUDE.md created (or extended) to say "read the roster before working here" — this is what makes wellrun's rule 2 machine-backed instead of hoped-for
 
+**Delta mode (spec.md frontmatter `cycle: N`, N > 1):** phase 1 is the **delta foundation** — materialize only what the extension rosters add (new migrations, new tokens, new shared components, new common layers), and update the affected rosters, hooks, and area CLAUDE.md files. Copy `cycle: N` into plan.md's frontmatter. Rewriting an existing, live foundation is **not** a plan step: that is an L/XL decision and belongs in the spec's resolved-decisions table — if it is not there, stop and route back to wellspec.
+
 Why this order is non-negotiable: expensive decisions are cheapest to fix before code piles on top of them, and once the foundations exist, every subsequent step begins as "reuse the existing common element" instead of "improvise and clean up later."
 
 **Phase 2 and onward** stack features on that foundation as **vertical slices** — each phase delivers a walkable piece of the core journey from begin.md, end to end.

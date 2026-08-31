@@ -38,6 +38,8 @@ mode: companion
 
 One line per step: `[x]` verified, `[>]` in progress or stopped (with the pending file when stopped), `[ ]` not started. A `verified` line is incomplete without its record: boundary-test result, probes written/committed (fresh tier), and findings with how each was resolved — failed rounds included. Facts about the code, one line per step; `run.md` is read by the conductor and the user, and is never among a verifier's inputs.
 
+run.md belongs to its cycle: created at the cycle's first briefing, archived into `cycles/NN/` by wellnext when the next cycle opens. Probes committed by earlier cycles' verifiers are ordinary tests now — the conductor's regression runs pick them up with the rest of the suite, so each cycle's verification starts on top of all previous cycles' work.
+
 ## Start briefing
 
 Before the first step (and again when resuming):
