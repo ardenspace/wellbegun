@@ -16,6 +16,8 @@ Translate the approved begin document into the solution space: resolve the expen
 - `.wellbegun/spec.md` with `status: draft` → resume where the draft stops. If the draft marks a question as `open — asked user`, re-ask it before doing anything else: an interruption never converts a user question into an agent decision.
 - `.wellbegun/spec.md` missing → this skill applies: write `spec.md` from the output template with `status: draft` **now**, before step 1, and fill it in as the steps run — disk is the anchor.
 
+**Delta mode:** when begin.md's frontmatter carries `cycle: N` with N > 1, this spec covers the cycle's delta. Copy `cycle: N` into spec.md's frontmatter on creation, and apply the delta branches marked in steps 1–2 below. `.wellbegun/audit.md` (written by wellnext) is an additional input.
+
 ## Step 1: Resolve the expensive decision queue
 
 For every entry in begin.md's queue:
@@ -28,6 +30,8 @@ Who decides: the agent proposes, records, and moves on — the user reviews ever
 
 If grading reveals an entry is actually S — it happens — say so and move it to the `## Implementer discretion` section (step 3). It gets **no row** in the Resolved decisions table and no ADR line; the table holds M and above. The queue coming in expensive does not oblige you to treat it as expensive.
 
+Delta mode only: before recording any resolution, check it against the existing ADRs in `decisions.md`. A conflict is not an error — it is an overturn: record it with the supersede format from `${CLAUDE_PLUGIN_ROOT}/references/reversibility-grades.md` (new line with `supersedes:`, old line marked), and update the `## L/XL index` in the same edit when the decision is L/XL.
+
 ## Step 2: Define the global registries
 
 Instantiate the four templates from `${CLAUDE_PLUGIN_ROOT}/references/registry-templates/` as **markdown rosters only**:
@@ -38,6 +42,8 @@ Instantiate the four templates from `${CLAUDE_PLUGIN_ROOT}/references/registry-t
 - **DB schema** — entities and ownership sketch.
 
 Timing rule: rosters only. The real files (token file, component stubs, migrations) are created in wellplan's phase 1, after the stack is fixed. A spec that writes code has jumped its lens.
+
+Delta mode only: the registries already exist as code. Read the live rosters and the actual code first, then write **extension rosters only** — what this cycle adds or changes, never a restatement of what exists. Take the `## Promotion candidates` list from `.wellbegun/audit.md` as input: grade each candidate, then either promote it (add to the extension roster; its materialization becomes a plan phase 1 step) or reject it with one line. Unhandled candidates are an unfinished step 2.
 
 ## Step 3: Leave cheap decisions blank
 
