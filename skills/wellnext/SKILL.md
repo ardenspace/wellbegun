@@ -28,7 +28,7 @@ Run before triage — its findings are triage evidence. Write results into `.wel
 
 ## Step 2: Entry triage
 
-Read the new work (feature list, flowchart, request), the current `begin.md` (identity decisions, non-goals), `decisions.md`, and the audit. Test two axes:
+Read the new work (feature list, flowchart, request), the current `begin.md` (identity decisions, non-goals), `decisions.md`, the outgoing `run.md`'s `## Deferred` section (what the last cycle accepted open), and the audit. Test two axes:
 
 - **Axis 1 — does it overturn?** The new work contradicts an identity decision or a non-goal in the current begin.md.
 - **Axis 2 — does it add a journey?** The new work introduces a user journey the current begin.md does not have, large enough to carry its own failure branches.
