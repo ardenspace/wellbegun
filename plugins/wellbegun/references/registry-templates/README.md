@@ -10,7 +10,7 @@ A registry is a **thin index** of the globally shared elements in one area of th
 
 ## Placement
 
-Each registry file lives **in its own area of the target repo**, next to the code it indexes (e.g. `src/components/shared/REGISTRY.md`), not in a central docs folder. "Read the registry before working in this area" is enforced by the area's CLAUDE.md or by a hook — it is not left to the implementer's discretion.
+Each registry file lives **in its own area of the target repo**, next to the code it indexes (e.g. `src/components/shared/REGISTRY.md`), not in a central docs folder. "Read the registry before working in this area" is enforced by the active host's area instruction file (`CLAUDE.md` or `AGENTS.md`) or by a hook — it is not left to the implementer's discretion.
 
 ## The four templates
 

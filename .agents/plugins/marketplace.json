@@ -1,0 +1,20 @@
+{
+  "name": "wellbegun",
+  "interface": {
+    "displayName": "wellbegun"
+  },
+  "plugins": [
+    {
+      "name": "wellbegun",
+      "source": {
+        "source": "local",
+        "path": "./plugins/wellbegun"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

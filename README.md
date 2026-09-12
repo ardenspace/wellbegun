@@ -2,7 +2,7 @@
 
 > **Well begun is half done.** — 시작이 반이다.
 
-A skill set for coding agents that plans MVPs around one question: **how hard is this decision to change later?**
+A dual Claude Code and Codex plugin that plans MVPs around one question: **how hard is this decision to change later?**
 
 ## The problem
 
@@ -24,12 +24,21 @@ Composable by design: wellbegun owns the pipeline but delegates implementation t
 
 ## Install
 
-In Claude Code:
+Claude Code:
 
-```
+```text
 /plugin marketplace add ardenspace/wellbegun
 /plugin install wellbegun@wellbegun
 ```
+
+Codex:
+
+```bash
+codex plugin marketplace add ardenspace/wellbegun
+codex plugin add wellbegun@wellbegun
+```
+
+Both installations load the same five skills from `plugins/wellbegun/`; host-specific manifests and instruction-file conventions are kept at the edges.
 
 ## Skills
 

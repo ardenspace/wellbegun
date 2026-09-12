@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Flag raw design values outside the token source. Adapt TOKEN_FILE and SEARCH_DIRS per project (phase 1).
 # SEARCH_DIRS accepts a space-separated list: SEARCH_DIRS="src app" bash check-hardcoded-values.sh
-# Prints violations to stderr and exits 2 — the signal Claude Code PostToolUse hooks feed back to the agent.
+# Prints violations to stderr and exits 2 for editing-time hooks; pre-commit wrappers normalize failure to exit 1.
 set -u
 TOKEN_FILE="${TOKEN_FILE:-src/styles/tokens.css}"
 read -ra dirs <<< "${SEARCH_DIRS:-src}"

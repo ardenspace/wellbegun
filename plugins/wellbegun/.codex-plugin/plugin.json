@@ -1,0 +1,34 @@
+{
+  "name": "wellbegun",
+  "version": "0.5.0",
+  "description": "MVP pipeline that spends attention only on hard-to-reverse decisions: begin, spec, plan, run, and next-cycle audit.",
+  "author": {
+    "name": "ardenspace",
+    "email": "ardensdevspace@gmail.com",
+    "url": "https://github.com/ardenspace"
+  },
+  "homepage": "https://github.com/ardenspace/wellbegun",
+  "repository": "https://github.com/ardenspace/wellbegun",
+  "license": "MIT",
+  "keywords": [
+    "mvp",
+    "reversibility",
+    "planning",
+    "pipeline",
+    "verification"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "wellbegun",
+    "shortDescription": "Plan MVPs around hard-to-reverse decisions",
+    "longDescription": "A five-skill MVP pipeline that shapes the user journey, resolves expensive decisions, builds foundation-first plans, runs isolated verification, and audits each new cycle.",
+    "developerName": "ardenspace",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/ardenspace/wellbegun",
+    "defaultPrompt": "Start a new MVP with wellbegin and focus on the decisions that will be expensive to reverse."
+  }
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fail when a file exists in a common folder but is absent from its registry roster.
 # Adapt PAIRS per project (phase 1). Format: "<common-dir>:<registry-md>"
-# Prints violations to stderr and exits 2 — the signal Claude Code PostToolUse hooks feed back to the agent.
+# Prints violations to stderr and exits 2 for editing-time hooks; pre-commit wrappers normalize failure to exit 1.
 set -u
 PAIRS=("src/components/shared:src/components/shared/REGISTRY.md")
 

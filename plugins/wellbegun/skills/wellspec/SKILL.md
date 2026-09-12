@@ -9,6 +9,10 @@ Translate the approved begin document into the solution space: resolve the expen
 
 **Core principle:** effort is proportional to reversal cost. A spec that is dense everywhere is as wrong as a spec that is thin everywhere. Dense at the one-way doors, silent at the two-way doors — that asymmetry *is* the spec.
 
+## Shared resources
+
+Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above this `SKILL.md`. Never resolve bundled resources relative to the user's project directory.
+
 ## Guard
 
 - `.wellbegun/begin.md` missing or not `status: approved` → stop and route to wellbegin.
@@ -22,7 +26,7 @@ Translate the approved begin document into the solution space: resolve the expen
 
 For every entry in begin.md's queue:
 
-1. Grade it with `${CLAUDE_PLUGIN_ROOT}/references/reversibility-grades.md` (S/M/L/XL — by reversal cost, not importance).
+1. Grade it with `<plugin-root>/references/reversibility-grades.md` (S/M/L/XL — by reversal cost, not importance).
 2. Decide it, and record a mini-ADR in `.wellbegun/decisions.md` — one line per the mini-ADR line format in that same reference (the format already carries decision, why, and the rejected alternative for L/XL).
 3. **L/XL entries require at least two compared alternatives** before deciding. S/M entries take one minute and one line.
 
@@ -30,11 +34,11 @@ Who decides: the agent proposes, records, and moves on — the user reviews ever
 
 If grading reveals an entry is actually S — it happens — say so and move it to the `## Implementer discretion` section (step 3). It gets **no row** in the Resolved decisions table and no ADR line; the table holds M and above. The queue coming in expensive does not oblige you to treat it as expensive.
 
-Delta mode only: before recording any resolution, check it against the existing ADRs in `decisions.md`. A conflict is not an error — it is an overturn: record it with the supersede format from `${CLAUDE_PLUGIN_ROOT}/references/reversibility-grades.md` (new line with `supersedes:`, old line marked), and update the `## L/XL index` in the same edit when the decision is L/XL.
+Delta mode only: before recording any resolution, check it against the existing ADRs in `decisions.md`. A conflict is not an error — it is an overturn: record it with the supersede format from `<plugin-root>/references/reversibility-grades.md` (new line with `supersedes:`, old line marked), and update the `## L/XL index` in the same edit when the decision is L/XL.
 
 ## Step 2: Define the global registries
 
-Instantiate the four templates from `${CLAUDE_PLUGIN_ROOT}/references/registry-templates/` as **markdown rosters only**:
+Instantiate the four templates from `<plugin-root>/references/registry-templates/` as **markdown rosters only**:
 
 - **Design tokens** — translate bundle 6's product character into named tokens with concrete values (this is where "warm, like Linear" becomes `color.accent: #...`).
 - **Shared components** — the minimal named set the core journey needs.
@@ -51,7 +55,7 @@ Add an explicit `## Implementer discretion` section listing what is *deliberatel
 
 ## Step 4: Enforcement plan
 
-Decide which checks from `${CLAUDE_PLUGIN_ROOT}/references/hooks/` apply and where they will be wired (PostToolUse hook, pre-commit, or both — see that folder's README). Write the choices down here; **installation itself becomes a phase 1 step in wellplan**, not an action taken now.
+Decide which checks from `<plugin-root>/references/hooks/` apply and where they will be wired (the active host's editing-time hook when available, pre-commit, or both — see that folder's README). Write the choices down here; **installation itself becomes a phase 1 step in wellplan**, not an action taken now.
 
 ## Output template
 
@@ -80,7 +84,7 @@ status: draft
 - <deliberately unspecified area>
 
 ## Enforcement plan
-- <check> wired as <PostToolUse / pre-commit / both>, adapted how
+- <check> wired as <host editing-time hook / pre-commit / both>, adapted how
 ```
 
 ## Handoff

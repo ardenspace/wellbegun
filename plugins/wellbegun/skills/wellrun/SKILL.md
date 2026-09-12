@@ -9,6 +9,10 @@ Execute the approved plan with subagents: implementers build against step contra
 
 **Core principle:** blind spots travel through shared context. So the context is what gets isolated — a verifier who read the implementer's narrative inherits the implementer's blind spots and stops being a verifier.
 
+## Shared resources
+
+Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above this `SKILL.md`. Never resolve bundled resources relative to the user's project directory.
+
 ## Conductor charter
 
 While a run is active, **this skill is the conductor**. The main session reads the plan, dispatches steps in order, receives results, and never writes code itself.
@@ -77,7 +81,7 @@ Model tier follows reversal cost — the same gradient that drives verification 
 
 The conductor itself stays on the session's model. If the harness offers no per-dispatch model choice, skip this section — correctness rules above still apply unchanged.
 
-Allocation is **announced, not silent** — harness UIs do not show a subagent's model, so the run's own records are where the user sees who works at what tier. Every dispatch announcement names the assigned tier, and the `run.md` step line carries it alongside the verification tier, e.g. `[>] 3.2 implementing — mid-tier (sonnet)` / `[x] 3.2 verified (fresh, high-tier)`.
+Allocation is **announced, not silent** — harness UIs do not always show a subagent's model, so the run's own records are where the user sees who works at what tier. Every dispatch announcement names the assigned tier, and the `run.md` step line carries it alongside the verification tier, e.g. `[>] 3.2 implementing — mid-tier` / `[x] 3.2 verified (fresh, high-tier)`.
 
 ## Execution loop
 
@@ -88,7 +92,7 @@ The four rules, enforced on every step:
 1. **Enforcement check** — done at briefing; hooks must be installed by the end of phase 1 and stay green.
 2. **Read the registry first** — the implementer reads the area rosters named in contract item 4 before touching that area.
 3. **Common-element rule** — on the roster → reuse it. Not on the roster but shared-shaped → create it in the common folder **and update the roster in the same commit**. "Hardcode now, clean up later" is forbidden — that cleanup is the debt this plugin exists to prevent.
-4. **Hidden expensive decisions** — when an implementer hits a decision the spec didn't cover, the roles split: the **implementer** grades it (`${CLAUDE_PLUGIN_ROOT}/references/reversibility-grades.md`). S/M → the implementer decides, records one ADR line, and continues. L/XL → the implementer reports the decision (situation, options it sees) back to the conductor and ends its turn; the **conductor** re-grades and acts by mode. Companion: write the pending file and halt the step. Autonomous: the conductor picks the *most reversible* option, records it in `decisions.md` marked `provisional`, adds it to the end-of-run report, and re-dispatches. Either way, partial work stays in the working tree and resumption means a **fresh** implementer with the same contract plus the recorded decision. A confirmed L/XL discovery also re-derives the step's verification tier: the step now touches an L/XL decision, so it verifies as `fresh` — with the model allocation that tier implies — regardless of what the plan derived.
+4. **Hidden expensive decisions** — when an implementer hits a decision the spec didn't cover, the roles split: the **implementer** grades it (`<plugin-root>/references/reversibility-grades.md`). S/M → the implementer decides, records one ADR line, and continues. L/XL → the implementer reports the decision (situation, options it sees) back to the conductor and ends its turn; the **conductor** re-grades and acts by mode. Companion: write the pending file and halt the step. Autonomous: the conductor picks the *most reversible* option, records it in `decisions.md` marked `provisional`, adds it to the end-of-run report, and re-dispatches. Either way, partial work stays in the working tree and resumption means a **fresh** implementer with the same contract plus the recorded decision. A confirmed L/XL discovery also re-derives the step's verification tier: the step now touches an L/XL decision, so it verifies as `fresh` — with the model allocation that tier implies — regardless of what the plan derived.
 
 ## Verification
 
@@ -126,7 +130,7 @@ Reply with the option number (or your own choice). The answer gets recorded
 in decisions.md and this file is deleted; the run resumes at the stopped step.
 ```
 
-Push notification on stop is the user's choice of channel, wired via the harness's Notification hook — see `${CLAUDE_PLUGIN_ROOT}/references/hooks/README.md`. Documented, never forced.
+Push notification on stop is the user's choice of channel, wired only when the active host exposes a notification hook — see `<plugin-root>/references/hooks/README.md`. Documented, never forced.
 
 ## Run completion
 

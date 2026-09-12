@@ -9,6 +9,10 @@ Shape the MVP entirely in **user language**: whose problem, one core journey, ob
 
 **Core principle:** decisions are not equally reversible. This lens exists to catch the one-way doors that are product-shaped, and to keep every other door swinging.
 
+## Shared resources
+
+Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above this `SKILL.md`. Never resolve bundled resources relative to the user's project directory.
+
 ## Guard
 
 Check `.wellbegun/begin.md` first:
@@ -49,7 +53,7 @@ Anything that smells like an expensive *technical* decision — storage shape, r
 ## Closing a bundle
 
 Before closing any bundle:
-1. Check its status-table row for uncovered probe angles from `${CLAUDE_PLUGIN_ROOT}/references/probe-angles.md` (empty first screen, day one without data, leave and return, unintended use, the receiving end of sharing).
+1. Check its status-table row for uncovered probe angles from `<plugin-root>/references/probe-angles.md` (empty first screen, day one without data, leave and return, unintended use, the receiving end of sharing).
 2. Fire the uncovered ones. Probe depth is adaptive — dig only where answers look thin.
 3. Only an explicit user "move on" closes a bundle with uncovered angles, and the skip is recorded in the table.
 
@@ -73,7 +77,7 @@ When begin.md's frontmatter carries `cycle: N` with N > 1 (seeded by wellnext), 
 
 - **Bundle 1 (whose problem)** — inheritance check: confirm the previous cycle's answer still holds for the new work; reopen fully only if the new work serves a different user or moment.
 - **Bundles 2–4 (journey, success criteria, non-goals)** — full density, scoped to the new work. The new journeys' failure branches live here; this is why large-but-identity-safe work still enters at begin.
-- **Bundle 5 (product identity)** — list the previous cycle's decisions, then discuss **only the ones this cycle overturns**. Every overturn is recorded per the supersede format in `${CLAUDE_PLUGIN_ROOT}/references/reversibility-grades.md`, and begin.md keeps the **full current list** of identity decisions — the top-level begin.md is always the current answer sheet; nobody should walk the archive to learn the current identity.
+- **Bundle 5 (product identity)** — list the previous cycle's decisions, then discuss **only the ones this cycle overturns**. Every overturn is recorded per the supersede format in `<plugin-root>/references/reversibility-grades.md`, and begin.md keeps the **full current list** of identity decisions — the top-level begin.md is always the current answer sheet; nobody should walk the archive to learn the current identity.
 - **Bundle 6 (character and tone)** — inherit and confirm; reopen only if the new work changes how the product should feel.
 - **Bundle 7 (tech queue)** — unchanged: every tech smell in the delta conversation gets a queue entry.
 

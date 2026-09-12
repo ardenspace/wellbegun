@@ -7,6 +7,10 @@ description: "Use when .wellbegun/spec.md has status: approved and no approved p
 
 Turn the approved spec into a phase > step structure where every step carries a contract written **before any implementation exists**. The output is `.wellbegun/plan.md`. This lens **is** the plan-writing stage of the pipeline: if the environment carries other plugins' plan-writing skills, do not invoke them while this skill is active — double-running a stage corrupts it.
 
+## Host and shared resources
+
+Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above this `SKILL.md`. Use the active host's project instruction file: `CLAUDE.md` in Claude Code and `AGENTS.md` in Codex. Never create the other host's file unless the project already supports both hosts.
+
 **Core principle:** materialize the hard-to-reverse foundations first, while changing them is still cheap. Every later step then starts in a world where the shared thing already exists — and reusing it is easier than hardcoding around it.
 
 ## Guard
@@ -24,10 +28,10 @@ Turn the approved spec into a phase > step structure where every step carries a 
 2. Design tokens → the actual token file
 3. Shared components → the minimal set, as real (even if skeletal) components
 4. Backend common layers → error envelope, auth, logging in code
-5. Enforcement hooks from the spec's enforcement plan → installed and passing (adapt `${CLAUDE_PLUGIN_ROOT}/references/hooks/` scripts to the stack chosen here)
-6. Read-first enforcement → each area's registry roster placed next to its code, and that area's CLAUDE.md created (or extended) to say "read the roster before working here" — this is what makes wellrun's rule 2 machine-backed instead of hoped-for
+5. Enforcement hooks from the spec's enforcement plan → installed and passing (adapt `<plugin-root>/references/hooks/` scripts to the stack chosen here)
+6. Read-first enforcement → each area's registry roster placed next to its code, and that area's active-host instruction file created (or extended) to say "read the roster before working here" — this is what makes wellrun's rule 2 machine-backed instead of hoped-for
 
-**Delta mode (spec.md frontmatter `cycle: N`, N > 1):** phase 1 is the **delta foundation** — materialize only what the extension rosters add (new migrations, new tokens, new shared components, new common layers), and update the affected rosters, hooks, and area CLAUDE.md files. Copy `cycle: N` into plan.md's frontmatter. Rewriting an existing, live foundation is **not** a plan step: that is an L/XL decision and belongs in the spec's resolved-decisions table — if it is not there, stop and route back to wellspec.
+**Delta mode (spec.md frontmatter `cycle: N`, N > 1):** phase 1 is the **delta foundation** — materialize only what the extension rosters add (new migrations, new tokens, new shared components, new common layers), and update the affected rosters, hooks, and active-host area instruction files. Copy `cycle: N` into plan.md's frontmatter. Rewriting an existing, live foundation is **not** a plan step: that is an L/XL decision and belongs in the spec's resolved-decisions table — if it is not there, stop and route back to wellspec.
 
 Why this order is non-negotiable: expensive decisions are cheapest to fix before code piles on top of them, and once the foundations exist, every subsequent step begins as "reuse the existing common element" instead of "improvise and clean up later."
 
