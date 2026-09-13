@@ -1,6 +1,6 @@
 {
   "name": "wellbegun",
-  "version": "0.5.0+codex.20260913032044",
+  "version": "0.6.0",
   "description": "MVP pipeline that spends attention only on hard-to-reverse decisions: begin, spec, plan, run, and next-cycle audit.",
   "author": {
     "name": "ardenspace",
