@@ -66,3 +66,46 @@ Flutter failures on baseline-identical KBO code remain unresolved and are not
 reported green. KBO source and other Herdr sessions are outside this operation.
 Installation smoke tests validate the local CLI protocol, not new independent
 agent judgments or a fresh model's end-to-end skill execution.
+
+## Installation and smoke result
+
+Implementation commit: `b8e71b0` (`feat: release lean execution and bounded context runtime`).
+The pre-existing `wellbegun` marketplace used Git source
+`https://github.com/ardenspace/wellbegun.git`. CLI add rejected changing an existing
+name's source, so `codex plugin marketplace remove wellbegun` was followed by
+`codex plugin marketplace add /Users/arden/Documents/dev/wellbegun` and
+`codex plugin add wellbegun@wellbegun`. All three completed successfully.
+Only that marketplace registration was replaced; the original source URL above
+can be re-registered through the same CLI if needed. No push or remote publish.
+
+Installed path:
+`/Users/arden/.codex/plugins/cache/wellbegun/wellbegun/0.5.0+codex.20260913032044`.
+All 29 payload files match the release source byte-for-byte (excluding generated
+`__pycache__`). Payload content identifier:
+`bcea2a4a2a5df8deea197eeb4a009f201f974adb8906077f02dfadfb03b32d65`.
+This is SHA-256 of compact, sorted-key JSON mapping relative file paths to their
+SHA-256 values. Runtime retains the accepted hash above.
+
+`python3 /private/tmp/wellbegun-installed-smoke.py`: PASS, one installed lifecycle
+test, 1.249 seconds. It uses the installed fixtures, skill shell examples and
+runtime, derives the plugin root from the installed wellrun SKILL.md, and runs
+from an unrelated cwd against a temporary project whose path contains spaces.
+The existing lifecycle case verifies:
+
+- decision lookup before state initialization, selected context and N/A registry;
+- basic completion without a verifier, consumer rejection before the gate;
+- synthetic gate protocol acceptance and reuse of valid command facts;
+- checkpoint, pending question, archive rejection while unresolved, answer
+  resolution and resume with next action preserved;
+- derived document regeneration, completion, archive preserving decisions, and
+  the next cycle's packet excluding previous execution context.
+
+Compact temporary observations: `/private/tmp/wellbegun-installed-smoke-result.json`.
+Fixture projects were cleaned by the existing harness. No new permanent tests
+were added, and the full suite/G1/Flutter tests were not repeated. The external
+validator's PyYAML limitation above remains; the official CLI accepted and
+installed the package and the repository structural check passed.
+
+Use a new Codex thread to load the updated skill instructions. Existing threads
+may retain the previously loaded 0.5.0 skill text; installed runtime smoke success
+does not claim to reload those contexts or change another session.
