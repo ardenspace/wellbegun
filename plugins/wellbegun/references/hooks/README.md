@@ -1,6 +1,6 @@
 # Enforcement hooks
 
-Registry rules are enforced by machines, not by hoping the model remembers. wellbegun ships **generic, grep-based reference scripts**; the wellrun conductor adapts them to the project's actual stack during phase 1 — choosing the file globs, the token file path, and the folder/roster pairs, then wiring them in.
+wellbegun ships optional **generic, grep-based reference scripts**. Prefer existing effective lint, type and schema checks. Adapt a reference only for active areas and concrete enforcement needs, choosing relevant globs and paths. These scripts do not prove semantic registry compliance; no hook installation or foundation phase is required for unrelated work.
 
 The two reference checks:
 
@@ -26,7 +26,7 @@ Use this when the active host exposes a supported after-edit hook. In Claude Cod
 }
 ```
 
-Codex plugins do not bundle an equivalent hook configuration. In Codex projects, enforce the read-first rule through the area's `AGENTS.md` and use the pre-commit wiring below as the machine backstop. Do not create `.claude/settings.json` or `CLAUDE.md` solely for a Codex run.
+Codex plugins do not bundle an equivalent hook configuration. In Codex projects, relevant-entry guidance can live in the area's existing `AGENTS.md`; add pre-commit wiring only when applicable and authorized. Do not create `.claude/settings.json` or `CLAUDE.md` solely for a Codex run.
 
 ## Wiring option 2: git pre-commit hook
 
@@ -41,7 +41,7 @@ EOF
 chmod +x .git/hooks/pre-commit
 ```
 
-Phase 1 should install the active host's editing-time hook when one is supported and the pre-commit hook unless the spec's enforcement plan says otherwise. The editing-time hook gives fast feedback; pre-commit is the cross-host backstop.
+Install only checks selected by the spec for this project, preserving existing hooks instead of overwriting them. The snippet illustrates a new hook; merge needed commands into an existing one. Git and host hooks are optional capabilities, not prerequisites for basic execution. Reuse valid check results and do not repeat a whole suite merely because review changes layers.
 
 ## Notifications (optional, documented — not forced)
 

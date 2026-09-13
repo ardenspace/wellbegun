@@ -9,11 +9,16 @@ Turn the approved spec into a phase > step structure where every step carries a 
 
 ## Host and shared resources
 
-Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above this `SKILL.md`. Use the active host's project instruction file: `CLAUDE.md` in Claude Code and `AGENTS.md` in Codex. Never create the other host's file unless the project already supports both hosts.
+Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above the directory containing this `SKILL.md`. Use the active host's project instruction file: `CLAUDE.md` in Claude Code and `AGENTS.md` in Codex. Never create the other host's file unless the project already supports both hosts.
 
 **Core principle:** materialize the hard-to-reverse foundations first, while changing them is still cheap. Every later step then starts in a world where the shared thing already exists — and reusing it is easier than hardcoding around it.
 
 ## Guard
+
+Use `<plugin-root>/references/selected-inputs.md` for bootstrap, selective inputs
+and generated host-instruction guidance (reuse it if already read).
+
+First reconcile explicit session approval with artifact status; update a stale draft flag for that approved scope instead of restarting planning.
 
 - `.wellbegun/spec.md` missing or not `status: approved` → stop and route to wellspec.
 - `.wellbegun/plan.md` with `status: approved` → route to wellrun.
@@ -22,44 +27,43 @@ Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code i
 
 ## Phase decomposition
 
-**Phase 1 is fixed — the foundation phase.** It turns the spec's markdown rosters into real code, plus installs the enforcement:
+Create a foundation phase only when the spec calls for actual foundation changes. Materialize planned shared APIs, data structures or tokens before their consumers. Reuse existing code, schemas and enforcement; instantiate only active registries and necessary checks. A CLI or library does not acquire UI registries. Preserve user-owned host instructions and add only relevant entry-reading guidance, without copying decision history.
 
-1. DB schema → actual migrations
-2. Design tokens → the actual token file
-3. Shared components → the minimal set, as real (even if skeletal) components
-4. Backend common layers → error envelope, auth, logging in code
-5. Enforcement hooks from the spec's enforcement plan → installed and passing (adapt `<plugin-root>/references/hooks/` scripts to the stack chosen here)
-6. Read-first enforcement → each area's registry roster placed next to its code, and that area's active-host instruction file created (or extended) to say "read the roster before working here" — this is what makes wellrun's rule 2 machine-backed instead of hoped-for
+For delta cycles (`cycle: N`, N > 1), carry the cycle into the plan and plan only additions or changes. An expensive foundation change must be covered by the approved spec; surface a genuinely new decision rather than recreating the existing foundation.
 
-**Delta mode (spec.md frontmatter `cycle: N`, N > 1):** phase 1 is the **delta foundation** — materialize only what the extension rosters add (new migrations, new tokens, new shared components, new common layers), and update the affected rosters, hooks, and active-host area instruction files. Copy `cycle: N` into plan.md's frontmatter. Rewriting an existing, live foundation is **not** a plan step: that is an L/XL decision and belongs in the spec's resolved-decisions table — if it is not there, stop and route back to wellspec.
+Group remaining work into vertical slices with observable outcomes. Mark each new foundation's producer and consumers, and place an independent gate before its first consumer. L/XL producer verification can satisfy that gate. Phase integration can also satisfy it when it precedes the first consumer and covers the same conditions. Independent color or name edits do not need a propagation gate.
 
-Why this order is non-negotiable: expensive decisions are cheapest to fix before code piles on top of them, and once the foundations exist, every subsequent step begins as "reuse the existing common element" instead of "improvise and clean up later."
+## Step sizing and contract
 
-**Phase 2 and onward** stack features on that foundation as **vertical slices** — each phase delivers a walkable piece of the core journey from begin.md, end to end.
+A step delivers one observable outcome with completion conditions. It is not defined by one agent call, context window or widget; helper and widget edits inside its scope are subtasks. Define the contract before implementation, while allowing new probes or useful test additions during implementation.
 
-## Step sizing
-
-A step is: **one subagent, one context window, machine-checkable completion.** If you cannot say what command proves the step done, or you doubt it fits one context, split it.
-
-## The step contract (six items — all required)
+For a new cycle with Python, write each contract once in the extractable format
+below, inside the human-readable plan. Do not duplicate it as a prose contract.
+Keep stable IDs and `scope_id` through renames. Read only “Plan and selected
+inputs” in `<plugin-root>/references/runtime-contract.md` when authoring this
+format. Existing in-progress legacy plans keep their original format.
 
 ```markdown
-### Step <phase>.<n>: <name>
-1. **Goal:** <one line>
-2. **Acceptance criteria:** <observable sentences — things a verifier can watch or run>
-3. **Boundary tests:** <executable commands with expected exit codes, fixed NOW, before implementation; the verifier will run exactly these>
-4. **Registries to read:** <which area rosters this step must read first>
-5. **Verification tier:** fresh | basic
-6. **Discretion scope:** <the spec's discretion items that apply to this step>
+<!-- wellbegun:contract step-1.1 -->
+{"id":"step-1.1","kind":"step","scope_id":"scope-1.1",
+ "goal":"Deliver the first observable behavior",
+ "completion":[{"id":"works","text":"The specified behavior holds"}],
+ "verification":["python3 check.py"],"decisions":[],"registry":[],
+ "discretion":"Local implementation details","requires":[],"grade":"basic"}
+<!-- /wellbegun:contract -->
 ```
 
-Item 5 is **derived, not chosen**: take the highest reversibility grade among the decisions this step touches — L/XL → `fresh` (context-isolated verifier subagent), S/M → `basic` (lint + boundary tests). Phase 1 steps touch L/XL foundations almost by definition; expect `fresh` there.
+Replace sample behavior/commands with real completion clauses. Put records in
+execution order; use `requires` for prerequisites and `decisions`/`registry`
+for stable keys, never copied history. Gate records use `kind:gate`, `grade:fresh`,
+and nonempty `producers`/`consumers` arrays; consumers require the gate. Phase and
+whole-run records use `kind:phase|whole-run`, fresh, their actual prerequisites,
+and explicit composition/release clauses. The bundled `tests/fixtures/plan.md`
+is a complete producer/gate/consumer example, not mandatory project scaffolding.
 
-Item 3 exists because of timing: acceptance tests written *after* implementation inherit the implementation's blind spots. The plan is the last moment the tests can be honest.
+Derive `grade` from the reversal cost of decisions introduced or changed in this step: L/XL → fresh; S/M → basic. Merely using an existing L API is not an L change. An S/M producer at a new propagation boundary still requires an independent gate before consumers. Basic requires contract and affected checks, without a separate verifier. Check breadth follows impact separately from reversal grade.
 
-Item 3's form matters as much as its timing: each test is an executable command with an expected exit code (`flutter analyze` → exit 0, `bash scripts/hooks/check-envelope.sh missing-field.json` → exit 2). Prose tests get translated into commands at dispatch time, and translation is where interpretation leaks into an otherwise isolated verifier. A test that can't be written as a command is the step-sizing signal in disguise: the step isn't machine-checkable yet — split or re-specify it.
-
-Item 3 self-check, per step: every file or command the boundary tests reference must be created by an earlier step or by the step itself — a test that presumes a later step's output cannot run when its turn comes.
+Commands must be available from previous work or created by this step, never depend on a later step. Observable UI checks are valid; do not split a coherent step just because a visual condition has no exit code. Specify phase integration and whole-run acceptance conditions too. Reuse valid results across step/gate/phase/final review rather than assigning the same full suite to every reviewer. See `<plugin-root>/references/reversibility-grades.md` for decision and verification policy.
 
 ## Output template
 
@@ -75,18 +79,25 @@ status: draft
 ## Phases
 | phase | delivers | steps |
 |---|---|---|
-| 1 | foundations + enforcement | 1.1–1.n |
+| 1 | <needed foundation or first journey slice> | 1.1–1.n |
 | 2 | <journey slice> | 2.1–2.n |
 
 ## Step contracts
-<six-item contract per step, as above>
+<contract per step, with explicit dependencies and propagation gates>
+
+## Integration and release criteria
+<phase composition and whole-run completion conditions>
 
 ## Run preview
-<!-- steps whose tier is fresh, or that touch L/XL decisions — wellrun shows this at briefing as "where the run may stop" -->
+<!-- steps whose tier is fresh, or that introduce/change L/XL decisions — wellrun shows this at briefing as "where the run may stop" -->
 | step | tier | touches |
 |---|---|---|
 ```
 
 ## Handoff
 
-Show the user the plan; point at the run-preview table so they know where stops are likely. On approval, flip to `status: approved` and invoke **wellrun**.
+Show the concrete plan and likely decision stops. Reuse approval already given for this scope; ask only for approval still missing or materially changed scope. Once approved, set `status: approved` and invoke **wellrun**.
+
+New-cycle state initialization in wellrun validates IDs, dependency order and
+gate placement before any implementation. Keep begin/spec artifacts in their
+existing formats; no whole-project migration is needed.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Structural validation for the wellbegun plugin. Exit non-zero on any violation.
+# Structural and runtime validation. One unittest discovery per invocation.
 set -u
 cd "$(dirname "$0")/.."
 fail=0
@@ -45,4 +45,5 @@ for f in $(grep -rlE '\.talpi/|\.loopspace/|pslog' "$plugin_root"/skills/ "$plug
 done
 
 [ $fail -eq 0 ] && echo "OK: wellbegun structure valid"
+python3 -m unittest discover -s "$plugin_root/tests" || err "runtime tests failed"
 exit $fail

@@ -1,22 +1,19 @@
 # Registry templates
 
-A registry is a **thin index** of the globally shared elements in one area of the codebase. wellspec instantiates these templates as markdown rosters; wellplan's phase 1 turns the rosters into real code; wellrun reads and updates them on every step.
+Use a registry only for an active area where code, types, schemas or lint do not already communicate the needed contract. Mark irrelevant areas N/A without creating empty files. CLI and library projects need no UI registries by default.
 
-## Three principles
+A registry holds reuse locations, public contracts, mandatory current constraints and stable decision keys. Read only entries relevant to the task, expanding when dependencies warrant. Keep long rationale, failed rounds and change history behind precise source pointers; never hide required constraints there without requiring that section before work.
 
-1. **Thin index.** Each row carries only: name, one-line purpose, real file location, when to use it. Never copy content into the registry — it is a map, not a document. A registry that duplicates its code goes stale; a registry that points at its code cannot.
-2. **Code is the source of truth.** Where the code itself can be the registry, let it: the design token file *is* the token registry, and the markdown only points at it. The markdown roster exists for the things code cannot self-describe (which component is canonical, which layer is mandatory).
-3. **Sync is machine-verified.** A new file in a common folder that is absent from its roster is a lint failure, not a hope. See `../hooks/check-registry-sync.sh` for the reference check.
+For schema 2 plans, `registry.index.json` holds only selected current entries:
+`{"schema":1,"entries":[{"key":"ui","status":"N/A"}]}` needs no UI file.
+An active entry has `key,status,location,contract,constraints,decisions` (stable
+decision keys), with an optional fingerprinted source reference. Put its key in
+the plan record; `context --remember` then delivers it with deduplicated decisions.
+Before state exists, read only the affected existing entry/code section. See
+`../selected-inputs.md`; do not initialize or migrate a cycle just for lookup.
 
-## Placement
+Code remains the source of truth. Avoid copying facts already maintained in code. Put an active registry near the code it describes; preserve project-owned instructions when adding relevant entry-reading guidance to AGENTS.md or CLAUDE.md. Do not require full roster or ledger reads.
 
-Each registry file lives **in its own area of the target repo**, next to the code it indexes (e.g. `src/components/shared/REGISTRY.md`), not in a central docs folder. "Read the registry before working in this area" is enforced by the active host's area instruction file (`CLAUDE.md` or `AGENTS.md`) or by a hook — it is not left to the implementer's discretion.
+Elements explicitly planned as shared belong in the common layer from first use. Otherwise keep the first use local and assess promotion on the second actual use. Similar appearance alone does not establish a common contract.
 
-## The four templates
-
-| Template | Area | Backing truth |
-|---|---|---|
-| `design-tokens.md` | Design | The token source file |
-| `frontend-components.md` | Frontend | Shared component folder |
-| `backend-common.md` | Backend | Common layers (error, auth, logging) |
-| `db-schema.md` | Data | Migrations |
+Adapt only relevant templates: design-tokens, frontend-components, backend-common, db-schema. Their sample rows illustrate possible entries, not required project architecture. Use existing enforcement when sufficient; the optional `../hooks/check-registry-sync.sh` checks listed files, not every semantic contract.

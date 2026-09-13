@@ -5,15 +5,20 @@ description: "Use when .wellbegun/begin.md has status: approved and no approved 
 
 # wellspec — the developer lens
 
-Translate the approved begin document into the solution space: resolve the expensive-decision queue with reversal-cost grades, define the global registries as markdown rosters, and — just as deliberately — leave the cheap decisions blank. The output is `.wellbegun/spec.md`.
+Translate the approved begin document into the solution space: resolve the expensive-decision queue with reversal-cost grades, identify relevant shared contracts and registries, and — just as deliberately — leave the cheap decisions blank. The output is `.wellbegun/spec.md`.
 
 **Core principle:** effort is proportional to reversal cost. A spec that is dense everywhere is as wrong as a spec that is thin everywhere. Dense at the one-way doors, silent at the two-way doors — that asymmetry *is* the spec.
 
 ## Shared resources
 
-Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above this `SKILL.md`. Never resolve bundled resources relative to the user's project directory.
+Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above the directory containing this `SKILL.md`. Never resolve bundled resources relative to the user's project directory.
 
 ## Guard
+
+Use `<plugin-root>/references/selected-inputs.md` for bootstrap and selective
+decision/registry lookup (reuse it if already read in this context).
+
+First reconcile explicit session approval with artifact status; update a stale draft flag for that approved scope instead of restarting planning.
 
 - `.wellbegun/begin.md` missing or not `status: approved` → stop and route to wellbegin.
 - `.wellbegun/spec.md` with `status: approved` → route to wellplan.
@@ -27,27 +32,22 @@ Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code i
 For every entry in begin.md's queue:
 
 1. Grade it with `<plugin-root>/references/reversibility-grades.md` (S/M/L/XL — by reversal cost, not importance).
-2. Decide it, and record a mini-ADR in `.wellbegun/decisions.md` — one line per the mini-ADR line format in that same reference (the format already carries decision, why, and the rejected alternative for L/XL).
-3. **L/XL entries require at least two compared alternatives** before deciding. S/M entries take one minute and one line.
+2. Decide it within existing authority. Record meaningful M and all L/XL with stable key, immutable record ID, status and current constraints per that reference; keep long rationale behind source pointers.
+3. **L/XL entries require at least two compared alternatives** before deciding. S needs no ADR; M is recorded only when future work needs the choice.
 
-Who decides: the agent proposes, records, and moves on — the user reviews every L/XL choice (with its rejected alternative) at Handoff before approving. Until that approval, every recorded L/XL line is a **proposal**, however confident its wording in `decisions.md` looks. Two exceptions that go to the user immediately, not at Handoff: an entry that turns out *product-shaped* (pricing, account model, data ownership — it escaped wellbegin's bundle 5), and an XL where the compared alternatives are genuinely close. When an exception puts a question to the user, mark that queue entry `open — asked user` in the draft spec; only the user's answer closes it (see Guard — an interrupted session must re-ask, never self-answer).
+Who decides: the agent proposes, records, and moves on — the user reviews every L/XL choice (with its rejected alternative) at Handoff before approving. Reuse L/XL approvals already given; until approval, every new L/XL record is a **proposal**, however confident its wording in `decisions.md` looks. Two exceptions that go to the user immediately, not at Handoff: an entry that turns out *product-shaped* (pricing, account model, data ownership — it escaped wellbegin's bundle 5), and an XL where the compared alternatives are genuinely close. When an exception puts a question to the user, mark that queue entry `open — asked user` in the draft spec; only the user's answer closes it (see Guard — an interrupted session must re-ask, never self-answer).
 
-If grading reveals an entry is actually S — it happens — say so and move it to the `## Implementer discretion` section (step 3). It gets **no row** in the Resolved decisions table and no ADR line; the table holds M and above. The queue coming in expensive does not oblige you to treat it as expensive.
+If grading reveals an entry is actually S — it happens — say so and move it to the `## Implementer discretion` section (step 3). It gets **no row** in the Resolved decisions table and no ADR line; the table holds meaningful M and L/XL. The queue coming in expensive does not oblige you to treat it as expensive.
 
-Delta mode only: before recording any resolution, check it against the existing ADRs in `decisions.md`. A conflict is not an error — it is an overturn: record it with the supersede format from `<plugin-root>/references/reversibility-grades.md` (new line with `supersedes:`, old line marked), and update the `## L/XL index` in the same edit when the decision is L/XL.
+Delta mode only: before recording any resolution, look up only related active decisions and required constraints in `decisions.md`. A conflict is not an error — it is an overturn: record it with the supersede format from `<plugin-root>/references/reversibility-grades.md` (new immutable ID with `supersedes: <old-ID>`, old record marked), and update the active key pointer when the replacement is approved.
 
-## Step 2: Define the global registries
+## Step 2: Select relevant registries
 
-Instantiate the four templates from `<plugin-root>/references/registry-templates/` as **markdown rosters only**:
+Mark each applicable area `active | N/A`: design tokens, shared components, backend common layers and DB schema. Use only needed templates from `<plugin-root>/references/registry-templates/`. A CLI needs no UI registry; existing code, types, schema and lint may already express the contract without duplicate markdown.
 
-- **Design tokens** — translate bundle 6's product character into named tokens with concrete values (this is where "warm, like Linear" becomes `color.accent: #...`).
-- **Shared components** — the minimal named set the core journey needs.
-- **Backend common layers** — error envelope, auth, logging (and pagination if lists exist).
-- **DB schema** — entities and ownership sketch.
+For active areas, record reuse locations, public contracts, mandatory current constraints and decision keys. Keep rationale and history behind exact source pointers. Materialization is planned only for necessary new foundations. Elements explicitly planned as shared are shared from first use; otherwise first use stays local and the second actual use prompts assessment, not automatic abstraction.
 
-Timing rule: rosters only. The real files (token file, component stubs, migrations) are created in wellplan's phase 1, after the stack is fixed. A spec that writes code has jumped its lens.
-
-Delta mode only: the registries already exist as code. Read the live rosters and the actual code first, then write **extension rosters only** — what this cycle adds or changes, never a restatement of what exists. Take the `## Promotion candidates` list from `.wellbegun/audit.md` as input: grade each candidate, then either promote it (add to the extension roster; its materialization becomes a plan phase 1 step) or reject it with one line. Unhandled candidates are an unfinished step 2.
+In delta mode, inspect only affected live entries and code; write additions or changed contracts, not a restatement. Assess relevant audit promotion candidates for real reuse and benefit. Similar shapes alone are insufficient.
 
 ## Step 3: Leave cheap decisions blank
 
@@ -55,7 +55,7 @@ Add an explicit `## Implementer discretion` section listing what is *deliberatel
 
 ## Step 4: Enforcement plan
 
-Decide which checks from `<plugin-root>/references/hooks/` apply and where they will be wired (the active host's editing-time hook when available, pre-commit, or both — see that folder's README). Write the choices down here; **installation itself becomes a phase 1 step in wellplan**, not an action taken now.
+Decide which checks from `<plugin-root>/references/hooks/` apply and where they will be wired (the active host's editing-time hook when available, pre-commit, or both — see that folder's README). Write the choices down here; reuse existing effective checks; install a missing applicable check in the plan only when needed, not an action taken now.
 
 ## Output template
 
@@ -69,16 +69,13 @@ status: draft
 # <project> — spec
 
 ## Resolved decisions
-<!-- one row per queue entry resolved at grade M or above; S-downgrades go to Implementer discretion instead -->
+<!-- meaningful M and L/XL only; S and ordinary local choices go to discretion -->
 | decision | grade | choice | ADR |
 |---|---|---|---|
-| <question> | L | <choice> | see decisions.md 2026-08-24 |
+| <question> | L | <choice> | <stable decision key> |
 
 ## Registries
-### Design tokens
-### Shared components
-### Backend common layers
-### DB schema
+<active/N/A areas and only required entries or source pointers>
 
 ## Implementer discretion
 - <deliberately unspecified area>
@@ -89,6 +86,6 @@ status: draft
 
 ## Handoff
 
-Show the user the finished spec, then confirm the L/XL choices **one at a time, each as a choice question** — proposed choice vs. rejected alternative, with the one-clause why for each. These are the doors that cannot be cheaply reopened; a table the user scrolls past is not a review. Do not present them as a batch-approval document, and do not use closed-verdict wording ("decided", "rejected") for anything the user has not yet confirmed — the `rejected:` clause in the ADR line is a comparison record, not a verdict. M-and-below stay in the table for passive review; they need no per-item question.
+Show the user the finished spec, then confirm only L/XL choices that still lack approval, using the concrete alternatives — proposed choice vs. rejected alternative, with the one-clause why for each. These are the doors that cannot be cheaply reopened; a table the user scrolls past is not a review. Respect an existing explicit approval of the concrete document; do not re-ask settled decisions. Do not use closed-verdict wording ("decided", "rejected") for anything the user has not yet confirmed — the alternatives in the decision record is a comparison record, not a verdict. M-and-below stay in the table for passive review; they need no per-item question.
 
-If an answer overturns a proposal, update the spec table and the ADR line before moving on. Only after every L/XL is confirmed, flip to `status: approved` and invoke **wellplan**.
+If an answer overturns a proposal, update the spec table and decision record before moving on. Only after every new L/XL choice has the required approval, flip to `status: approved` and invoke **wellplan**.

@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "active": [
+    {
+      "key": "theme.owner",
+      "id": "D1"
+    }
+  ],
+  "records": [
+    {
+      "key": "theme.owner",
+      "id": "D1",
+      "grade": "L",
+      "status": "approved",
+      "choice": "One application theme owner",
+      "scope": "theme",
+      "constraints": "Consumers read the shared owner.",
+      "reason": "Keep updates consistent.",
+      "source": null,
+      "required_sections": {}
+    }
+  ]
+}

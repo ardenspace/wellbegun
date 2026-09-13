@@ -1,34 +1,42 @@
 ---
 name: wellnext
-description: "Use when a wellbegun project has completed its pipeline (approved plan, finished run) and a new chunk of work arrives — a feature list, a flowchart, an n-th development round. Cycle gate of the wellbegun pipeline: audits the registries, proposes an entry point, archives the finished cycle, and seeds the next one."
+description: "Use when a wellbegun project has completed its pipeline (approved plan, finished run) and a new chunk of work arrives — a feature list, a flowchart, an n-th development round. Cycle gate: triages work, audits affected areas when needed, archives the finished cycle, and seeds the next one."
 ---
 
 # wellnext — the cycle gate
 
-Open the next cycle of a completed wellbegun project: audit the global registries against the actual code, propose an entry point by rule, and — only after the user confirms — archive the finished cycle into `.wellbegun/cycles/NN/` and seed the new cycle's artifacts. This is the only skill that opens or closes cycles; the four lens skills operate inside whatever cycle is current.
-
-**Core principle:** a new cycle starts on an honest ledger. Between cycles, code drifts away from the rosters (out-of-pipeline work, hotfixes), and planning on top of a lying ledger poisons every later lens — so the drift is settled before any new planning happens.
+Classify incoming work before auditing. Small fixes with no new expensive decision proceed directly with affected checks. For a new cycle, audit relevant areas, reuse existing authorization, archive completed work and seed the selected lens.
 
 ## Guard
 
+Resolve `<plugin-root>` as `${CLAUDE_PLUGIN_ROOT}` in Claude Code or two
+directories above this SKILL.md's containing directory in Codex. Use
+`<plugin-root>/references/selected-inputs.md` for bootstrap and selective lookup
+(reuse it if already read); all helper/project paths must be absolute.
+
+First reconcile explicit session approval with artifact status; update a stale draft flag for that approved scope instead of restarting planning.
+
+Before ordinary missing-plan routing, check for an unfinished archive follow-up:
+if current state/plan are absent but outgoing begin/spec remain, compare their
+cycle with the completed archived state's cycle/returned destination. Finish
+only the matching begin/spec/outgoing-audit moves without overwriting files,
+then seed the authorized next cycle. Do not guess a match from the latest
+directory name alone or initialize state to bypass an uncertain archive.
+
 - `.wellbegun/` missing → not a wellbegun project yet; route to wellbegin.
 - `.wellbegun/pending/` non-empty → answers are owed; route to wellrun.
-- `.wellbegun/plan.md` missing or not `status: approved`, or `run.md` has steps not yet `[x]` → the pipeline is mid-flight; route to the stage the artifacts point to.
-- `.wellbegun/plan.md` approved and every `run.md` step verified → this skill applies.
+- Schema 2: bootstrap via `context --remember`; only a valid `cursor:complete`
+  permits closing. Pending, stopped, drift or unresolved findings route to wellrun.
+  Do not infer completion from derived run.md.
+- Legacy: missing/unapproved plan or relevant run entries not `[x]` means mid-flight;
+  route to the current lens. An approved plan with every record verified and no
+  unresolved finding/pending question permits closing in its existing format.
 
 Not every change deserves this gate: bugfixes and small tweaks proceed without wellnext — the installed hooks keep guarding, and the next cycle's audit settles whatever accumulated. wellnext is for chunks of work.
 
-## Step 1: Registry audit
+## Step 1: Entry triage
 
-Run before triage — its findings are triage evidence. Write results into `.wellbegun/audit.md` (template below) as they land; disk is the anchor.
-
-1. **Roster ↔ code drift.** For each of the four registries (design tokens, shared components, backend common layers, DB schema), compare the roster against the actual code. Two smells: an element that exists in code but not on the roster (out-of-pipeline addition), and a roster entry whose code is gone or changed shape. Update the rosters to match reality **now**, before any new planning, and commit the fixes as part of the audit — the new cycle must not plan on a lying ledger.
-2. **Enforcement status.** Run the installed hooks and linters from the spec's enforcement plan over the **whole codebase** (not per-edit) and record pass/fail per check. Broken or missing enforcement is itself a finding; restoring it becomes a step in the new cycle's plan.
-3. **Duplication scan.** Look for shared-shaped patterns repeated two or more times outside the common layer: hardcoded values that mirror a token, copy-pasted widget or handler structure, parallel error handling. Record each as a **promotion candidate** — name, locations, which registry it would join. **wellnext finds, never decides:** grading candidates and extending rosters is the developer lens's job; the candidate list is an input to wellspec's delta step 2.
-
-## Step 2: Entry triage
-
-Read the new work (feature list, flowchart, request), the current `begin.md` (identity decisions, non-goals), `decisions.md`, the outgoing `run.md`'s `## Deferred` section (what the last cycle accepted open), and the audit. Test two axes:
+Read the new work (feature list, flowchart, request), the current `begin.md` (identity decisions, non-goals), related active decision entries, relevant items from the outgoing `run.md`'s `## Deferred` section. Use current constraints only. Test two axes:
 
 - **Axis 1 — does it overturn?** The new work contradicts an identity decision or a non-goal in the current begin.md.
 - **Axis 2 — does it add a journey?** The new work introduces a user journey the current begin.md does not have, large enough to carry its own failure branches.
@@ -41,13 +49,47 @@ Read the new work (feature list, flowchart, request), the current `begin.md` (id
 
 The axes are deliberately not "does it touch identity": the begin lens's value is the user lens itself (journeys, failure branches, probe angles), so a large development with intact identity still enters at begin.
 
-Propose exactly one verdict **with evidence** — which decision would be overturned, which journey is new, how much of the new work the audit shows is already covered by existing registry elements — and ask the user to confirm. Proposal plus confirmation, the same philosophy as wellspec's L/XL review; only the user's confirmation opens a cycle.
+For **no pipeline**, perform the authorized small change and affected checks immediately; do not audit, archive or seed a cycle first. Otherwise state the entry and evidence, then audit affected areas. Reuse prior authorization to open this cycle; ask only if it is missing or the work introduces an unapproved expensive choice or material scope change.
 
-## Step 3: Opening procedure (after confirmation)
+## Step 2: Relevant-area audit
 
-1. **Archive.** Create `.wellbegun/cycles/NN/` (zero-padded, next free number). Stamp `closed: YYYY-MM-DD` into the outgoing `begin.md`'s frontmatter — part of the archival act; archived files are immutable afterward. Move `begin.md`, `spec.md`, `plan.md`, `run.md`, and the previous `audit.md` (if any) into the archive. `decisions.md` stays at top level — append a `## cycle N` header to the ledger so entries read in cycle order. A legacy flat decisions.md (no index or ledger sections yet) gets restructured into the `## L/XL index` + `## Ledger (append-only, chronological)` form first — content unchanged, lines only move. Artifacts with no date frontmatter (cycle-1 projects predate it): backfill `opened`/`closed` from git history at archive time.
-2. **Seed.** Write the new cycle's first artifact with frontmatter `cycle: N`, `entry: begin|spec`, `opened: YYYY-MM-DD`. Begin entry → seed `begin.md` with `status: draft` from wellbegin's template, plus an inherited-identity section listing the previous cycle's identity decisions. **Spec entry still gets a begin.md** — a thin one, written here with `status: approved` (the user's entry confirmation is its approval): the full list of identity decisions carried forward (the top-level begin.md is always the current answer sheet), a summary of this cycle's delta journeys, and an empty expensive-decision queue (spec entry means no product-lens conversation ran to fill it; discoveries during the run still follow wellrun's hidden-decision rule). This keeps wellspec's guard untouched and keeps upstream documents honest.
-3. **Route.** Invoke the confirmed entry lens — wellbegin for begin entry, wellspec for spec entry. On a **no pipeline** verdict, nothing is archived and nothing is seeded: tell the user the hooks keep guarding, and stop.
+Only after triage identifies a cycle, inspect affected active registry entries and code. Expand to a whole-project audit only with evidence of broad drift. Skip N/A registries and reuse effective schema/type/lint checks.
+
+Record relevant roster/code drift, applicable enforcement results, and actual reuse opportunities in `.wellbegun/audit.md`. Correct confirmed owned index errors under existing project authority; preserve user changes and do not force a commit or invent a design choice. New public-contract decisions go to wellspec. Run checks for changed areas, reusing valid results. Promotion candidates need actual reuse or an approved shared plan, not similar appearance alone.
+
+## Step 3: Opening procedure (within authorization)
+
+1. **Archive.** For schema 2, invoke the helper below before moving any other
+   artifacts. It validates completion and archives plan/state/run, optional
+   HANDOFF and cycle evidence together to `cycles/<stored-cycle>/`. On success,
+   stamp `closed` in the outgoing begin and move begin/spec and the previous
+   cycle's audit, if present, into that same returned destination without
+   overwriting any file. Keep this cycle-opening audit at top level (create it
+   separately from an outgoing audit if necessary). Before seeding, verify
+   those moves; after interruption finish them before overwriting current files.
+   Legacy uses the next free zero-padded `cycles/NN/`, preserving its original
+   begin/spec/plan/run/audit format and manually confirming all blockers are clear.
+   Both paths preserve top-level decisions/indexes/registries and append only a
+   needed cycle heading to the original ledger, without converting history.
+   Archived files are immutable. Without reliable dates, record unknown.
+2. **Seed.** Write the new cycle's first artifact with frontmatter `cycle: N`, `entry: begin|spec`, `opened: YYYY-MM-DD`. Begin entry → seed `begin.md` with `status: draft` from wellbegin's template, plus an inherited-identity section listing the previous cycle's identity decisions. **Spec entry still gets a begin.md** — a thin one, written here with `status: approved` (existing authorization for this entry supplies its approval): the full list of identity decisions carried forward (the top-level begin.md is always the current answer sheet), a summary of this cycle's delta journeys, and an empty expensive-decision queue (spec entry means no product-lens conversation ran to fill it; discoveries during the run still follow wellrun's hidden-decision rule). This keeps wellspec's guard untouched and keeps upstream documents honest.
+3. **Route.** Invoke the confirmed entry lens — wellbegin for begin entry, wellspec for spec entry. On a **no pipeline** verdict, complete the requested change directly, without archive or seed.
+
+Schema 2 archive command (`wb_revision` is the latest returned revision):
+
+```sh
+python3 "$wb_helper" transition --root "$wb_root" --expected-revision "$wb_revision" --input - <<'JSON'
+{"op":"archive"}
+JSON
+```
+
+If `.archive.json` exists, read only “Cycle archive” in the runtime contract:
+resume the same operation with its recorded revision, never delete its marker
+or overwrite the destination. After archive, the next approved plan initializes
+at revision 0 with a new cycle ID. Do not copy old state/read receipts or inject
+archived run/evidence into its packet. Decision lookup remains available between
+cycles. With no Python, keep manual/legacy cycles manual; an existing schema 2
+archive waits for a Python-capable session.
 
 ## audit.md template
 

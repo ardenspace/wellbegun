@@ -1,6 +1,6 @@
 # DB schema registry
 
-> **Rule: schema changes always ride a migration, never a hand edit.** The migrations folder is the source of truth; this roster maps entities to their owners and migrations so nobody re-derives the schema by reading table dumps.
+> **Follow the project’s schema-change contract.** For persisted data needing migration, migrations are the source of truth. Use a roster only for ownership or constraints not already expressed by the schema.
 
 **Migrations folder:** `<path — e.g. migrations/>`
 
@@ -9,4 +9,6 @@
 | `users` | Account root | `<migration file>` | Owned by auth slice; other slices reference, never alter |
 | `<entity>` | | | |
 
-<!-- One row per entity. "Ownership notes" says which feature slice may alter it — schema is L/XL territory, so changes outside the owner stop the run. -->
+<!-- One row per entity. "Ownership notes" says which feature slice may alter it — grade the particular schema decision being changed; ordinary use of an existing schema does not trigger L/XL verification. -->
+
+<!-- Active areas only. Retain public contracts, required current constraints and stable decision keys here; link detailed rationale/history without duplicating it. -->

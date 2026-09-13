@@ -11,14 +11,24 @@ Shape the MVP entirely in **user language**: whose problem, one core journey, ob
 
 ## Shared resources
 
-Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above this `SKILL.md`. Never resolve bundled resources relative to the user's project directory.
+Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above the directory containing this `SKILL.md`. Never resolve bundled resources relative to the user's project directory.
 
 ## Guard
+
+Use `<plugin-root>/references/selected-inputs.md` for bootstrap and selective
+decision/registry lookup, including legacy projects. Read this short guide once
+per context; do not load the full runtime contract for this lens.
+
+First reconcile explicit session approval with artifact status; update a stale draft flag for that approved scope instead of restarting planning.
 
 Check `.wellbegun/begin.md` first:
 - `status: approved` → do not restart the conversation. Route to wellspec.
 - `status: draft` → resume from its status table: reopen the bundles with uncovered angles or open questions.
 - missing → create `.wellbegun/` and write `begin.md` from the template below **immediately, before the conversation starts** — disk is the anchor from the first turn, and an empty status table is what makes resumption possible.
+
+## Existing decisions and authority
+
+Reuse answers and approvals already supplied. Read relevant active identity decisions and mandatory constraints, not the entire decisions ledger or archive. Record new identity choices with stable keys, immutable IDs and status per `<plugin-root>/references/reversibility-grades.md`; separate current constraints from detailed rationale. Do not create an ADR for S or an ordinary local M choice.
 
 ## Stance
 
@@ -78,7 +88,7 @@ When begin.md's frontmatter carries `cycle: N` with N > 1 (seeded by wellnext), 
 - **Bundle 1 (whose problem)** — inheritance check: confirm the previous cycle's answer still holds for the new work; reopen fully only if the new work serves a different user or moment.
 - **Bundles 2–4 (journey, success criteria, non-goals)** — full density, scoped to the new work. The new journeys' failure branches live here; this is why large-but-identity-safe work still enters at begin.
 - **Bundle 5 (product identity)** — list the previous cycle's decisions, then discuss **only the ones this cycle overturns**. Every overturn is recorded per the supersede format in `<plugin-root>/references/reversibility-grades.md`, and begin.md keeps the **full current list** of identity decisions — the top-level begin.md is always the current answer sheet; nobody should walk the archive to learn the current identity.
-- **Bundle 6 (character and tone)** — inherit and confirm; reopen only if the new work changes how the product should feel.
+- **Bundle 6 (character and tone)** — inherit the confirmed choice; reopen only if the new work changes how the product should feel.
 - **Bundle 7 (tech queue)** — unchanged: every tech smell in the delta conversation gets a queue entry.
 
 ## Output template
@@ -111,4 +121,4 @@ status: draft
 
 ## Handoff
 
-When every bundle is closed, show the user the finished document and ask for approval. On approval, flip `status: draft` → `status: approved` and invoke **wellspec** — the queue is its first input.
+When every bundle is closed, show the finished document and obtain any approval still missing; do not re-ask an already approved scope. On approval, flip `status: draft` → `status: approved` and invoke **wellspec** — the queue is its first input.

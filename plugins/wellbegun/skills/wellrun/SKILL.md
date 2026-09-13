@@ -3,135 +3,150 @@ name: wellrun
 description: "Use when .wellbegun/plan.md has status: approved and execution should start or continue — including resuming after a stop, or when .wellbegun/pending/ is non-empty. Final lens of the wellbegun pipeline (wellbegin → wellspec → wellplan → wellrun)."
 ---
 
-# wellrun — the conductor
+# wellrun — execute within verified boundaries
 
-Execute the approved plan with subagents: implementers build against step contracts, fresh-eyes verifiers judge against those same contracts — never against the implementer's story. Verification intensity follows reversal cost.
-
-**Core principle:** blind spots travel through shared context. So the context is what gets isolated — a verifier who read the implementer's narrative inherits the implementer's blind spots and stops being a verifier.
+Execute approved step contracts sequentially. Reuse the implementer within a verified boundary; independently verify a new foundation before dependent work spreads it.
 
 ## Shared resources
 
-Resolve `<plugin-root>` once before reading a bundled resource. In Claude Code it is `${CLAUDE_PLUGIN_ROOT}`. In Codex it is the directory two levels above this `SKILL.md`. Never resolve bundled resources relative to the user's project directory.
+Resolve `<plugin-root>` before reading a bundled resource: `${CLAUDE_PLUGIN_ROOT}` in Claude Code; the directory two levels above the directory containing this `SKILL.md` in Codex. Never resolve it relative to the user's project.
 
-## Conductor charter
+## Guard and resume
 
-While a run is active, **this skill is the conductor**. The main session reads the plan, dispatches steps in order, receives results, and never writes code itself.
+Use `<plugin-root>/references/selected-inputs.md` for `context --remember`
+bootstrap, selective lookup and independent dispatch (reuse it if already read).
 
-Skills provided by other plugins in the environment are a toolbox for the *implementation technique layer only*: implementer subagents may use technique skills such as test-driven development, systematic debugging, or pre-completion verification. Other plugins' planning-layer skills (brainstorming, spec-writing, plan-writing) are **never invoked during a run** — the pipeline already did that work, and double-running a stage corrupts it.
+First reconcile explicit session approval with artifact status; update a stale draft flag for that approved scope instead of restarting planning.
 
-## Guard
+- Missing or unapproved `.wellbegun/plan.md` → route to wellplan.
+- Read the current contract, relevant gates, applicable registry entries and active decisions, plus the current progress record. Do not load historical decisions or completed-round narratives as default input. Decision lookup and recording rules are in `<plugin-root>/references/reversibility-grades.md`.
+- Process `.wellbegun/pending/` before resuming affected work. Reconcile answers already given and record the resulting decision. Schema 2 uses `resolve-pending` below; legacy removes only the answered file after recording it. An interruption is not an answer.
+- Preserve the existing cycle's artifact format. For legacy cycles, `run.md` remains the progress record; do not partially introduce a new state format.
+- Check current code, work location and contract against the recorded target before reusing completion results. Drift requires checking the impact, not assuming completion or automatically rolling back code.
 
-- `.wellbegun/plan.md` missing or not `status: approved` → stop and route to wellplan.
-- `.wellbegun/pending/` non-empty → **the run is stopped, awaiting answers.** Process the mailbox first: for each pending file, get the user's answer, append a mini-ADR line to `.wellbegun/decisions.md`, then delete the pending file. The file's existence is the state flag — an empty `pending/` means nothing is owed. Only after the mailbox is empty, re-run the start briefing and resume at the step `run.md` marks as stopped.
+## Start briefing and ownership
 
-## Running state — `.wellbegun/run.md`
+Reuse the stored mode and existing user approval. On a first run with no choice, use **companion**: ask only for newly discovered L/XL decisions. **Autonomous** applies when authorized: choose the most reversible provisional option within that authority and report it. Neither mode permits passing a broken contract or exceeding execution permissions.
 
-The conductor's durable memory **and the run's audit ledger**. Created at the first briefing, updated after **every** step transition, so a new session (or a return hours later) can resume from disk alone — and a third party can re-check any verification from `run.md` plus the step contract alone:
+Briefly show likely decision stops and required verification boundaries. Install only enforcement selected by the spec and needed for this project; do not invent a foundation or hook step at briefing.
 
-```markdown
----
-mode: companion
----
-- [x] 1.1 verified (basic) — boundary tests exit 0
-- [x] 1.2 verified (fresh, high-tier) — boundary tests exit 0; probes: 3 written, 2 committed (test/theme_scope_probe_test.dart); findings: none
-- [x] 1.3 verified (fresh, high-tier) — round 1 FAIL: theme lost under nested scopes → fix dispatched; round 2 pass; probes: 1 committed
-- [x] phase 1 integration verified (fresh, high-tier) — round 1 FAIL: 1.2's tokens unread by 1.3's widget (owner: 1.3) → fixed; round 2 pass
-- [x] 1.4 verified (fresh, high-tier) — round 1 REJECT: public getter leaks the fix → fixed; round 2 REJECT: doc claim wider than the hook enforces (outside the contract) → claim narrowed; round 3 ACCEPT; outside-contract findings deferred: hook misses `part` files
-- [>] 2.1 stopped → pending/auth-model.md
-- [ ] 2.2
+Default to one writer in the existing worktree. Inspect existing changes and scope; never revert, stash, overwrite or indiscriminately stage user changes. Commit only owned changes under project policy and existing authority. Choose isolation when ownership overlaps or a separate candidate is needed, explicitly preserving the required uncommitted baseline.
+
+## Schema 2 execution
+
+Use the helper for authoritative writes; never hand-edit state/run/HANDOFF. On a
+new approved marker-based plan with no previous execution artifacts, initialize
+once with the chosen cycle and stored/authorized mode:
+
+```sh
+python3 "$wb_helper" transition --root "$wb_root" --expected-revision 0 --input - <<'JSON'
+{"op":"init","cycle":"cycle-1","mode":"companion"}
+JSON
 ```
 
-One line per step: `[x]` verified, `[>]` in progress or stopped (with the pending file when stopped), `[ ]` not started. A `verified` line is incomplete without its record: boundary-test result, probes written/committed (fresh tier), and findings with how each was resolved — failed rounds included. Facts about the code, one line per step: a finding is a clause plus the commit that resolved it, and the reasoning lives in commit messages and `decisions.md`, not here. A step's line is **rewritten in place** on every transition — a second line for the same step is a ledger defect. `run.md` is read by the conductor and the user, and is never among a verifier's inputs.
+Then read `context --remember`. For each write, use the last returned revision
+as `wb_revision`; pass the operation as JSON via stdin, without temporary input
+or receipt files:
 
-Below the step lines, a `## Deferred` section collects what the run could not resolve inside the cycle — outside-contract findings that were accepted open, environment blockers, capped rounds' remainders — one line each with the step that owns it. The conductor appends to it as the run goes; wellnext reads it when the cycle closes.
-
-run.md belongs to its cycle: created at the cycle's first briefing, archived into `cycles/NN/` by wellnext when the next cycle opens. Probes committed by earlier cycles' verifiers are ordinary tests now — the conductor's regression runs pick them up with the rest of the suite, so each cycle's verification starts on top of all previous cycles' work.
-
-## Start briefing
-
-Before the first step (and again when resuming):
-
-1. **Enforcement check (rule 1):** confirm phase 1 contains the enforcement-hook installation step from the spec's enforcement plan. Missing → add it now, as a phase 1 step.
-2. Announce: "the run stops on L/XL decisions" and show the plan's run-preview table — the steps where a stop is likely.
-3. Ask the user to pick a mode:
-   - **companion** (default) — stop and ask on L/XL discoveries.
-   - **autonomous** (unattended, e.g. overnight) — never stop: take the *most reversible* provisional choice, mark it `provisional` in code and in `decisions.md`, and collect every L/XL decision into an end-of-run report for the user.
-4. Create `.wellbegun/run.md` (first briefing) or update it (resume): record the chosen mode in its frontmatter and make sure every plan step has a line.
-
-## Three layers
-
-| layer | context | receives |
-|---|---|---|
-| Conductor (main session) | the plan + `run.md` | step results, verdicts |
-| Implementer subagent | fresh per step | the step contract + the area rosters its item 4 names |
-| Verifier subagent (fresh tier) | brand-new, isolated | the contract, the diff, the run commands, the item-4 rosters — **and nothing else** |
-
-"The run commands" means the concrete commands to build, run the app, and execute the contract's boundary tests — the conductor writes them into the dispatch. "The item-4 rosters" are the same registry files the implementer was required to read, so the verifier can judge registry-rule compliance (reuse vs. hardcode) with its own eyes.
-
-The verifier is never given the implementer's narrative, summary, or self-assessment. Not as a convenience, not "for context."
-
-### Model allocation
-
-Model tier follows reversal cost — the same gradient that drives verification intensity. When the harness lets a dispatch choose the subagent's model, the conductor assigns:
-
-- **Implementer on S/M steps** — a mid-tier model. The contract already carries the decisions; the work is mechanical, and this is where most of the run's tokens go.
-- **Implementer on steps whose run-preview row touches L/XL decisions** — a high-tier model.
-- **Basic-tier verification** — no subagent at all when the conductor can run the lint and boundary-test commands itself; otherwise the lowest tier.
-- **Fresh verifiers, phase integration, and the whole-run review** — a high-tier model, always. Adversarial verification is the pipeline's core value; economizing here inverts the premise.
-
-The conductor itself stays on the session's model. If the harness offers no per-dispatch model choice, skip this section — correctness rules above still apply unchanged.
-
-Allocation is **announced, not silent** — harness UIs do not always show a subagent's model, so the run's own records are where the user sees who works at what tier. Every dispatch announcement names the assigned tier, and the `run.md` step line carries it alongside the verification tier, e.g. `[>] 3.2 implementing — mid-tier` / `[x] 3.2 verified (fresh, high-tier)`.
-
-## Execution loop
-
-Serial by default: implement → verify → fix → next step. (Reversal-cost-proportional verification keeps cheap steps fast, so serial costs little.)
-
-The four rules, enforced on every step:
-
-1. **Enforcement check** — done at briefing; hooks must be installed by the end of phase 1 and stay green.
-2. **Read the registry first** — the implementer reads the area rosters named in contract item 4 before touching that area.
-3. **Common-element rule** — on the roster → reuse it. Not on the roster but shared-shaped → create it in the common folder **and update the roster in the same commit**. "Hardcode now, clean up later" is forbidden — that cleanup is the debt this plugin exists to prevent.
-4. **Hidden expensive decisions** — when an implementer hits a decision the spec didn't cover, the roles split: the **implementer** grades it (`<plugin-root>/references/reversibility-grades.md`). S/M → the implementer decides, records one ADR line, and continues. L/XL → the implementer reports the decision (situation, options it sees) back to the conductor and ends its turn; the **conductor** re-grades and acts by mode. Companion: write the pending file and halt the step. Autonomous: the conductor picks the *most reversible* option, records it in `decisions.md` marked `provisional`, adds it to the end-of-run report, and re-dispatches. Either way, partial work stays in the working tree and resumption means a **fresh** implementer with the same contract plus the recorded decision. A confirmed L/XL discovery also re-derives the step's verification tier: the step now touches an L/XL decision, so it verifies as `fresh` — with the model allocation that tier implies — regardless of what the plan derived.
-
-## Verification
-
-- **basic tier:** lint + the contract's boundary tests pass. That's it — spending fresh-eyes effort on an S step inverts the plugin's premise.
-- **fresh tier:** a context-isolated verifier with an adversarial charter: *"find the reason this fails."* The verifier runs the contract's boundary tests **and has the authority to write new probe tests of its own** — the contract is the floor, not the ceiling.
-- **The verdict is bound to the contract.** The verifier's report has two parts, in this order: (1) the **verdict** — REJECT names the contract sentence (Goal, an acceptance criterion, a boundary test) that the code's behavior breaks and the probe or command that shows it; (2) **findings outside the contract** — everything else worth knowing: a documented claim wider than what a check enforces, a bypass of a source-text check, a hook false positive, a test that could be stronger. ACCEPT with findings outside the contract is a normal outcome. The conductor grades those findings like hidden decisions (rule 4): S/M → attach to the next fix dispatch or record under the run's deferred section; L/XL → pending file. A claim wider than its enforcement is fixed by **narrowing the claim** — widening the enforcement is new scope and goes through the deliverable rule below.
-- **Round cap: three.** A step gets round 1 plus two fix-and-reverify rounds. A REJECT at round 3 is not answered with another fix dispatch. Companion: stop the step and write a pending file whose options are (a) accept the step with the open findings recorded as deferred and the over-wide claims narrowed, (b) split the open findings into a new step, (c) a fixed number of further rounds — the user picks. Autonomous: take (a), mark it `provisional`, and list it in the end-of-run report. The round count goes on the step's `run.md` line either way.
-- **The deliverable is what the Goal describes.** The deliverable's files are the ones the step's implementation commit created or changed to meet the Goal; hooks, guard scripts, test infrastructure and doc claims are supporting artifacts. Before dispatching a fix, the conductor reads the previous fix's diff. If that diff touched **no non-comment line** of the deliverable's files and grew supporting artifacts instead — hooks, guard scripts, test infrastructure, doc claims — the step's deliverable is done and the loop is now building something the contract never asked for. Stop the loop there: accept the step with the open findings recorded, and the supporting work becomes a **new step** appended to the current phase in `plan.md` with its own contract and grade, or a deferred entry if it can wait for the cycle to close.
-- **Regression runs are the conductor's job.** Before dispatching a fresh verifier, the conductor runs the project's full test suite itself and puts the command and its result in the dispatch — a fact about the code, not a narrative. The verifier spends its context on what only it can do (adversarial probes), while keeping the authority to re-run anything it distrusts.
-- **Passed probes become assets.** After its verification round passes, the verifier may commit its probes into the test directory as regression tests: new test files only, never edits to existing files (the rule that verifiers don't modify target code stands), and skip probes that duplicate already-committed ones. Committed probes join the conductor's regression run, so each phase's verification starts on top of the last one's work instead of from scratch.
-- Three verification layers across the run: per-step verification → phase integration verification → whole-run fresh-eyes review before final acceptance.
-- **Phase integration** runs after a phase's last step passes: a fresh verifier receives the phase's row from the plan's Phases table (what the phase delivers), the diff of the whole phase, and the run commands — charter: walk the delivered slice end to end and find where the steps fail to compose. On failure, the flow is the step flow: the conductor attributes each finding to the step that owns the broken piece, dispatches a fix under **that step's contract** (findings attached, as facts about the code), then re-runs phase integration with a **new** fresh verifier. The phase's `run.md` line records the findings, their owning steps, and the rounds. Mark the phase done in `run.md` only after this passes.
-
-A failed verification returns the verdict to the conductor; the conductor dispatches a fix (same contract, findings attached) and re-verifies — within the round cap and the deliverable rule above. Findings travel as *facts about the code*, never as the previous implementer's narrative — and they go to the **fixing implementer only**. Re-verification always means a **new** fresh verifier that receives the standard four inputs and nothing about the previous round; a verifier that knows the old findings only checks the old findings. Every round leaves its trace on the step's `run.md` line — the finding and its resolution — so the ledger shows what failed and was fixed, not just that the step eventually passed.
-
-## Stop UX — the pending mailbox
-
-On an L/XL stop, write `.wellbegun/pending/<slug>.md` so the user can answer from one file even hours later:
-
-```markdown
-# Pending decision: <one-line question>
-
-## Situation
-<where the run stopped and why this decision surfaced — 3–5 lines>
-
-## Options
-1. <option> — reversal grade <S/M/L/XL>, <one-clause tradeoff>
-2. <option> — ...
-
-## Recommendation
-<option n>, because <one clause>.
-
-## How to answer
-Reply with the option number (or your own choice). The answer gets recorded
-in decisions.md and this file is deleted; the run resumes at the stopped step.
+```sh
+python3 "$wb_helper" transition --root "$wb_root" --expected-revision "$wb_revision" --input -
 ```
 
-Push notification on stop is the user's choice of channel, wired only when the active host exposes a notification hook — see `<plugin-root>/references/hooks/README.md`. Documented, never forced.
+Start a step with `op:set,record,status:implementing,context_id,actor,workspace,target`.
+`actor` may be null; workspace is the absolute project root, target is the
+relevant project-relative source/test/config paths (including planned new files,
+with at least one existing file). Declare the actual dependency/input closure;
+the helper cannot discover undeclared dependencies. Execute checks in that
+workspace, regardless of where the helper was called.
 
-## Run completion
+After basic implementation and successful affected checks, one
+`op:complete-basic,record,target,checks` write completes it. No separate checking
+write, receipt copying or verifier is required. Each check records its actual
+`command,files,exit_status,environment,environment_known,external_state,covers`;
+`covers` names completion clause IDs. Reuse valid evidence with
+`reuse:[{evidence:ID,covers:[IDs]}],environment` instead of rerunning it. Read only
+“State writes” in the runtime contract when constructing a payload the first time.
 
-After the last step passes: run the whole-run fresh-eyes review (layer 3), then report — steps completed, decisions recorded (including provisionals, which the user must revisit), and the state of the enforcement hooks.
+Fresh step completion uses checking with the independent `verifier_context_id`,
+then verified with successful checks/reuse and the actual verifier ACCEPT.
+Gate/phase/whole-run start directly in checking, with the independent context as
+both `context_id` and `verifier_context_id`, after its verifier packet reads.
+Do not manufacture independent verdicts when the host cannot provide them.
+
+Transitions generate run.md. Use `render` only to recover missing derived output;
+`render --handoff` optionally requests a persistent HANDOFF and returns a new
+revision. Neither generated file is a second bootstrap input.
+
+At interruption or decision wait use `op:set,status:stopped,record,reason` and
+the concrete `next_action`; a checkpoint may refresh expected edited `target`
+paths before a stop. On resume, bootstrap the current packet and explicitly set
+the saved `resume_status` with the actual context identity. For detected drift,
+use `op:reconcile,reason`, restore prerequisites through required checking and
+fresh gates, then resume the preserved consumer action. Same-file additions
+require current checks; do not repeat completed implementation merely because a
+hash changed. Pending and unresolved caps remain blockers. Read only “Checkpoint,
+drift, and recovery” for an unfamiliar recovery case.
+
+Schema 2 questions are `pending/<slug>.json` with a `question` body containing
+the situation, choices and recommendation. Stop with `pending:"pending/<slug>.json"`.
+Preserve that question when adding the actual `answer` and `decision_key`;
+record the approved active decision, then use
+`op:resolve-pending,record,decision_key`. It saves answer evidence and removes
+the answered file; explicit resume follows. Never unlink a schema 2 question to
+bypass dispatch. Lost/mismatched mailbox files require reconciliation.
+
+## Implementer continuity
+
+The current agent may implement basic work directly. A subagent is optional for basic execution. Reuse an implementer for successive S/M steps when the area, contracts and decisions remain valid and context is sufficient. Use a new implementer after a phase, context shortage, ownership conflict, material contract change, or resolution of a newly discovered L/XL decision. Do not ask or write an ADR for routine reuse.
+
+Technique skills may support implementation. Do not restart another planning pipeline during an approved run.
+
+Before changing an area, read its relevant active registry entries and current constraints. Reuse established public contracts. Materialize elements explicitly planned as shared from their first use; otherwise keep the first use local and assess promotion at the second actual use. Similar appearance alone does not justify abstraction. Update relevant registry entries with shared changes; N/A areas need no registry.
+
+Grade the decision being introduced or changed, not an existing L/XL API merely being used. Consult `<plugin-root>/references/reversibility-grades.md`: S needs no permanent ADR; record M only when future work needs the choice. New L/XL decisions go to the conductor/current session for authority and contract review. Companion pauses affected work with a pending question; authorized autonomous work records a provisional choice. Resume with the resolved contract and a new implementer, and use fresh verification for the L/XL change.
+
+If contracts are missing or contradictory, constraints surprise you, the same cause fails repeatedly, or scope grows, pause dependent work and revisit assumptions. Add a gate when needed. Replacing the implementer is not verification.
+
+## Propagation gates
+
+A gate names its producer and the consumers blocked until it passes. Independently verify a new shared contract or data flow before the first consumer, even if its producer is S/M. An L/XL producer's fresh verification, or phase integration before the first consumer testing the same conditions, can satisfy the gate without another review.
+
+On failure, fix the producer before consumers proceed. A change to the foundation contract or verified behavior invalidates the gate; assess affected consumers and rerun necessary verification. Record newly discovered dependencies and gates in the plan under existing authority unless they change an expensive decision or authorized scope.
+
+## Verification and completion
+
+- **Basic:** complete after the contract checks and affected lint/analyze or other relevant checks pass. No separate verifier or verifier ACCEPT is required.
+- **Fresh:** use a new independent context. Give it the contract, target code/diff, execution commands, relevant registry entries and active decisions. Valid command-result facts may be supplied; exclude implementer self-assessment, full evidence narratives and previous verifier judgments. The verifier explores code and may make probes, but does not modify target implementation or existing tests. Prefer strong reasoning capability if the host offers model selection; no named model is required.
+- Without subagents, basic still runs. At a fresh boundary, prepare the same packet for a separate independent session and wait. Same-context self-review is not fresh. Git, hooks and context-usage APIs are not prerequisites for basic execution.
+- REJECT must identify a violated contract clause and reproduction evidence. Report outside-contract suggestions separately; they do not block completion unless they expose a new L/XL choice or a defect in the current contract. Give the fixer failed clauses and reproduction facts. Reverification uses a new independent context.
+- The observable Goal and acceptance criteria determine completion. A diff limited to tests, hooks, documentation or comments is not evidence that the deliverable is complete.
+
+### Rounds and unresolved findings
+
+Each verification scope gets at most three rounds including the first. Keep stable finding IDs across retries. Renaming a step or finding, changing a candidate SHA or rewording a contract does not reset rounds. Only an actually approved new scope is a new unit; retain each prior finding as resolved, explicitly excluded, or unresolved. Exclusion is not a pass.
+
+After round 3 fails, preserve the unresolved status. Ask for additional rounds or a meaningful scope change when needed; neither companion nor autonomous may mark the failure verified. Continue only unaffected independent work allowed by the plan; otherwise checkpoint and report the blocker. Outside-contract deferred suggestions remain distinct from unresolved contract violations.
+
+### Checks and evidence
+
+Run each successful check once for the same valid inputs. Assign one execution owner, so conductor and verifier do not habitually duplicate commands. S/M uses contract and affected checks; fresh adds necessary regression and independent judgment. There is no mandatory full suite immediately before a fresh dispatch.
+
+Record target commit or content identity (HEAD alone is insufficient for dirty code), scope, command, exit status, relevant environment/dependency identities and external-state dependence. Changed source, tests, configuration, dependencies or environment invalidate affected results. Uncertain external state is not reusable. Documentation-only SHA changes do not invalidate unchanged test inputs. A verifier may rerun a result it has reason to distrust; record the reason briefly.
+
+UI rendering and observable states are valid acceptance checks. Do not invent a test framework just to turn every visual criterion into an exit code; use goldens only for a stable environment and clear purpose.
+
+Use temporary reproductions first. Keep permanent probes only for new regression value, preferably integrated by the implementer into existing tests. Rerun changed tests after integration. Zero to two new permanent probes per round is a target, not a quota or cap; clean up relevant probes at phase end.
+
+Phase integration uses a fresh context to verify the phase's composition and necessary regression, including key rendered states for UI. Its contract states what must compose. Fix owned failures under the relevant contract; do not reset finding rounds. Whole-run fresh review checks all release criteria, reusing valid results and running only missing or invalidated checks. Every required step, gate and review must pass before completion.
+
+## Legacy progress and checkpoint
+
+Keep one current line per record in `.wellbegun/run.md`, with the saved mode in frontmatter. Use `[ ]` queued, `[>]` active/stopped, `[x]` verified. Record status, target identity, round, stable unresolved finding IDs, short check results, evidence pointers and next action. Keep raw logs and failed-round narratives in evidence files, not growing single lines. A stopped contract violation cannot be hidden under `## Deferred`; that section is for outside-contract work.
+
+Checkpoint after a step, verification round or gate, on a decision wait, user interruption, or host context-shortage signal. Do not guess usage percentages. Preserve work location, current target, contract, round and resume action. Reports normally contain status, target ID, changed scope, checks, unresolved findings and next action within 300 words; detailed findings live in referenced files.
+
+## Pending questions and completion
+
+For a legacy cycle's new decision requiring an answer, write `.wellbegun/pending/<slug>.md` with the question, situation, options and reversal grades, recommendation, and how to answer. Schema 2 uses the JSON question protocol above. Notifications are optional and require existing channel authorization; see `<plugin-root>/references/hooks/README.md`.
+
+After all contracts and required gates/reviews pass, report completed work, valid verification, remaining outside-contract findings and provisional decisions. A missing independent verifier or unresolved contract means stopped, not complete.
