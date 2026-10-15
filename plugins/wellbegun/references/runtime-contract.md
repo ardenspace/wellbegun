@@ -32,7 +32,8 @@ extractor. File order is execution order. Required fields are `id`, `kind`
 `{id,text}`), `verification` (nonempty command strings), `decisions` (keys),
 `registry` (keys), `discretion`, `requires` (predecessor IDs), and `grade`
 (`basic|fresh`). Gate/integration records use fresh. A gate also declares
-nonempty `producers` and `consumers`. Dependencies must precede consumers;
+nonempty `producers` and `consumers`. Optional `round_limit` is `2` or `3`
+(default `3`; see State writes). Dependencies must precede consumers;
 cycles, missing IDs, duplicate IDs/scopes, and transitive gate bypass fail.
 `scope_id` survives renaming and contract edits so rounds cannot reset. Stable IDs,
 keys, context IDs and detail names use 1–120 ASCII letters/digits/`_.-`.
@@ -193,17 +194,22 @@ context_id:...}`. Without a verifier the record stops; basic needs no verdict.
 
 Failure sets fixing with `findings:[{id,clause,reproduction}]` and any check facts.
 The same unresolved violation keeps its stable ID. Initial checking counts as
-round 1. At round 3 failure stays stopped/unresolved. Resolving needs explicit
+round 1. At the scope's limit (default 3) failure stays stopped/unresolved. Resolving needs explicit
 `resolved_findings:[IDs]` alongside passing evidence. Extra rounds require
 `op:approve-rounds,scope_id,additional,approval` with the actual user approval.
 The helper cannot itself establish user authorization.
 After a verified scope is invalidated by actual target/check-input or selected-input
 content drift (including drift propagated from a prerequisite),
-its total round count is retained and its limit is extended to allow three rounds
+its total round count is retained and its limit is extended by the scope's `allowance` (default 3)
 for the new failure episode. Reconcile during implementing/fixing/stopped never
 refreshes this allowance, and unresolved findings cannot reset it. Plan wording
 or record renaming alone does not extend the limit. Successful
 iterations therefore do not exhaust a failure cap merely through normal progress.
+A contract may set `round_limit` to `2` or `3` (default `3`). The value fixes
+the scope's `limit` and `allowance` when the scope is created, at init or at an
+approved new scope in replan. Changing `round_limit` on an existing scope never
+alters its limit; use `op:approve-rounds` to add rounds. State files without
+`allowance` read it as `3`.
 
 `checks` can be replaced/supplemented by `reuse:[{evidence:ID,covers:[clause IDs]}],environment:{...}`.
 Only previously state-referenced successful results with matching commands,

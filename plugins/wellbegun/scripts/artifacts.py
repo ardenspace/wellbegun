@@ -105,6 +105,8 @@ def plan(root):
         need(key == rec['id'] and key not in records, 'invalid_plan', 'Duplicate or mismatched contract ID')
         need(rec['kind'] in {'step', 'gate', 'phase', 'whole-run'} and rec['grade'] in {'basic', 'fresh'}, 'invalid_plan', 'Invalid kind or grade')
         need(rec['kind'] == 'step' or rec['grade'] == 'fresh', 'invalid_plan', 'Gates and integration require fresh verification')
+        if 'round_limit' in rec:
+            need(type(rec['round_limit']) is int and rec['round_limit'] in {2, 3}, 'invalid_plan', f'{key}: round_limit must be 2 or 3')
         for name in ['scope_id', 'goal', 'discretion']:
             need(isinstance(rec[name], str) and rec[name], 'invalid_plan', f'{key}: {name} must be nonempty')
         for name in ['verification', 'decisions', 'registry', 'requires']:
@@ -319,6 +321,7 @@ def validate_state(root, state, records, pdigest, drift=False):
     for scope in state['scopes'].values():
         fields(scope, ['round', 'limit'], 'scope')
         need(type(scope['round']) is int and type(scope['limit']) is int and 0 <= scope['round'] <= scope['limit'], 'invalid_state', 'Invalid scope rounds')
+        need(type(scope.get('allowance', 3)) is int and scope.get('allowance', 3) in {2, 3}, 'invalid_state', 'Invalid scope allowance')
     for finding in state['findings'].values():
         fields(finding, ['id', 'scope_id', 'clause', 'reproduction', 'status', 'round'], 'finding')
         need(finding['status'] in {'unresolved', 'resolved', 'excluded'}, 'invalid_state', 'Invalid finding disposition')
@@ -648,6 +651,11 @@ def write_evidence(root, evidence):
     return pointer
 
 
+def new_scope(contract):
+    allowance = contract.get('round_limit', 3)
+    return {'round': 0, 'limit': allowance, 'allowance': allowance}
+
+
 def new_record(rec):
     return {'status': 'queued', 'scope_id': rec['scope_id'], 'contract_digest': digest(rec), 'input_digest': None,
             'target': None, 'actor': None, 'workspace': None, 'context_id': None, 'implementer_contexts': [], 'round': 0,
@@ -700,7 +708,7 @@ def invalidate(root, state, records, changed, reason, content_changed=(), preser
             # A completed acceptance starts a new failure episode after real drift.
             # Preserve total round history; do not spend failure allowance on success.
             scope = state['scopes'][rec['scope_id']]
-            scope['limit'] = max(scope['limit'], scope['round'] + 3)
+            scope['limit'] = max(scope['limit'], scope['round'] + scope.get('allowance', 3))
         if rec['status'] != 'queued':
             pointer = write_evidence(root, {'kind': 'invalidation', 'record': key, 'reason': reason, 'previous_status': rec['status'], 'previous_next_action': rec['next_action'], 'previous_evidence': rec['evidence'], 'revision': state['revision']})
             rec['evidence'].append(pointer)
@@ -768,7 +776,7 @@ def transition(root, expected_revision, payload):
             fields(payload, ['cycle', 'mode'], 'init')
             identifier(payload['cycle'], 'cycle')
             need(isinstance(payload['cycle'], str) and payload['cycle'] and payload['mode'] in {'companion', 'autonomous'}, 'invalid_input', 'Invalid cycle/mode')
-            state = {'schema': 2, 'cycle': payload['cycle'], 'revision': 0, 'plan_digest': pdigest, 'mode': payload['mode'], 'cursor': next(iter(records)), 'records': {k: new_record(r) for k, r in records.items()}, 'scopes': {r['scope_id']: {'round': 0, 'limit': 3} for r in records.values()}, 'findings': {}, 'reads': {}, 'events': [], 'handoff_requested': False}
+            state = {'schema': 2, 'cycle': payload['cycle'], 'revision': 0, 'plan_digest': pdigest, 'mode': payload['mode'], 'cursor': next(iter(records)), 'records': {k: new_record(r) for k, r in records.items()}, 'scopes': {r['scope_id']: new_scope(r) for r in records.values()}, 'findings': {}, 'reads': {}, 'events': [], 'handoff_requested': False}
         else:
             state = load_state(root, records, pdigest, drift=op == 'reconcile')
             need(state['revision'] == expected_revision, 'stale_revision', 'Expected revision does not match', revision=state['revision'])
@@ -805,7 +813,7 @@ def transition(root, expected_revision, payload):
                         changed.add(key)
                     updated[key] = copy.deepcopy(existing)
                     updated[key].update(contract_digest=digest(contract), scope_id=contract['scope_id'])
-                    state['scopes'].setdefault(contract['scope_id'], {'round': 0, 'limit': 3})
+                    state['scopes'].setdefault(contract['scope_id'], new_scope(contract))
                 removed = set(old) - set(records)
                 need(not any(old[k]['status'] in ACTIVE or old[k]['pending'] for k in removed), 'scope_change', 'Cannot drop active or pending record')
                 for fid, status in payload.get('finding_dispositions', {}).items():

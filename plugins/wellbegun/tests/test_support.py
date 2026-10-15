@@ -10,7 +10,7 @@ runtime = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runtime)
 
 
-def create_project(directory, basic_only=False):
+def create_project(directory, basic_only=False, round_limits=None):
     root = Path(directory).resolve() / '.wellbegun'
     root.mkdir(parents=True)
     for file in (PLUGIN / 'tests/fixtures').iterdir():
@@ -20,6 +20,11 @@ def create_project(directory, basic_only=False):
     if basic_only:
         records, _ = runtime.plan(root)
         write_plan(root, [records['producer']])
+    if round_limits:
+        records, _ = runtime.plan(root)
+        for key, limit in round_limits.items():
+            records[key]['round_limit'] = limit
+        write_plan(root, list(records.values()))
     runtime.transition(root, 0, json.loads((root / 'init.json').read_text()))
     return root
 
