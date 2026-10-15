@@ -53,9 +53,18 @@ In delta mode, inspect only affected live entries and code; write additions or c
 
 Add an explicit `## Implementer discretion` section listing what is *deliberately* unspecified — internal state shapes, helper structure, non-shared endpoint details, copy tone. This section is the plugin's signature, not an omission: it tells the run's implementers where they are free, so they neither wait for permission nor invent constraints.
 
-## Step 4: Enforcement plan
+## Step 4: Check contract
 
-Decide which checks from `<plugin-root>/references/hooks/` apply and where they will be wired (the active host's editing-time hook when available, pre-commit, or both — see that folder's README). Write the choices down here; reuse existing effective checks; install a missing applicable check in the plan only when needed, not an action taken now.
+Read `<plugin-root>/references/check-contract.md` (reuse it if already read in this context).
+
+1. **One check command.** Find the project's existing aggregate command. If none exists, plan a step that composes the existing lint, typecheck and test commands; do not create it now. It exits non-zero on failure; warnings do not fail it.
+2. **Classify affected conventions.** For conventions in areas this cycle touches — begin/spec decisions, active registry entries, and convention documents the project already keeps — assign `lint`, `test` or `review`. Leave untouched areas unclassified.
+3. **Rule tests.** Each `lint` entry needs at least one should-flag and one should-pass case at real file paths, run by the check command. Plan their creation with the rule.
+4. **Interpretations are decisions.** When a convention's wording does not fix its scope, grade the chosen interpretation with `<plugin-root>/references/reversibility-grades.md`. Record it briefly; ask the user only when it spreads across areas.
+5. **Text-pattern hooks are a last resort.** Use `<plugin-root>/references/hooks/` scripts only where no language linter can express the rule, and record beside the entry that it cannot stop notation bypass and its gaps are not REJECT grounds.
+6. **CI is optional.** Record a workflow path when the project has a remote and CI authority, otherwise `local only`. Running the check command locally satisfies completion either way.
+
+Delta mode: write only changed entries. `.wellbegun/audit.md` `## Rule promotions` is an additional input; plan each accepted promotion as a rule plus its rule tests.
 
 ## Output template
 
@@ -80,8 +89,12 @@ status: draft
 ## Implementer discretion
 - <deliberately unspecified area>
 
-## Enforcement plan
-- <check> wired as <host editing-time hook / pre-commit / both>, adapted how
+## Check contract
+- command: `<one command>` (<lint | typecheck | test, as included>)
+- lint: <convention> → <rule>, scope <globs>
+- test: <convention> → <test location>
+- review: <convention> — <why it cannot be mechanized>
+- CI: <workflow path> | local only
 ```
 
 ## Handoff
