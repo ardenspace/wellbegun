@@ -49,7 +49,7 @@ Read the new work (feature list, flowchart, request), the current `begin.md` (id
 
 The axes are deliberately not "does it touch identity": the begin lens's value is the user lens itself (journeys, failure branches, probe angles), so a large development with intact identity still enters at begin.
 
-For **no pipeline**, perform the authorized small change and affected checks immediately; do not audit, archive or seed a cycle first. Otherwise state the entry and evidence, then audit affected areas. Reuse prior authorization to open this cycle; ask only if it is missing or the work introduces an unapproved expensive choice or material scope change.
+For **no pipeline**, perform the authorized small change and run the spec's check command (or affected checks when no check contract exists) immediately; do not audit, archive or seed a cycle first. Otherwise state the entry and evidence, then audit affected areas. Reuse prior authorization to open this cycle; ask only if it is missing or the work introduces an unapproved expensive choice or material scope change.
 
 ## Step 2: Relevant-area audit
 
@@ -57,18 +57,20 @@ Only after triage identifies a cycle, inspect affected active registry entries a
 
 Record relevant roster/code drift, applicable enforcement results, and actual reuse opportunities in `.wellbegun/audit.md`. Correct confirmed owned index errors under existing project authority; preserve user changes and do not force a commit or invent a design choice. New public-contract decisions go to wellspec. Run checks for changed areas, reusing valid results. Promotion candidates need actual reuse or an approved shared plan, not similar appearance alone.
 
+Read `.wellbegun/rule-candidates.md` when present. Promote a defect kind that appears twice or more, or once with an obvious lint/test means, into `## Rule promotions`; leave the rest out. Promotions are input to wellspec delta step 4, not rules built here.
+
 ## Step 3: Opening procedure (within authorization)
 
 1. **Archive.** For schema 2, invoke the helper below before moving any other
    artifacts. It validates completion and archives plan/state/run, optional
    HANDOFF and cycle evidence together to `cycles/<stored-cycle>/`. On success,
-   stamp `closed` in the outgoing begin and move begin/spec and the previous
-   cycle's audit, if present, into that same returned destination without
+   stamp `closed` in the outgoing begin and move begin/spec, `rule-candidates.md` and the
+   previous cycle's audit, if present, into that same returned destination without
    overwriting any file. Keep this cycle-opening audit at top level (create it
    separately from an outgoing audit if necessary). Before seeding, verify
    those moves; after interruption finish them before overwriting current files.
    Legacy uses the next free zero-padded `cycles/NN/`, preserving its original
-   begin/spec/plan/run/audit format and manually confirming all blockers are clear.
+   begin/spec/plan/run/audit format, moving `rule-candidates.md` with them, and manually confirming all blockers are clear.
    Both paths preserve top-level decisions/indexes/registries and append only a
    needed cycle heading to the original ledger, without converting history.
    Archived files are immutable. Without reliable dates, record unknown.
@@ -104,8 +106,11 @@ date: YYYY-MM-DD
 ## Roster ↔ code drift
 - <registry>: <finding, and the roster fix applied> | none
 
-## Enforcement status
-- <hook/linter>: pass | FAIL — <what broke>
+## Check command
+- `<command>`: pass | FAIL — <what broke>
+
+## Rule promotions (input to wellspec delta step 4)
+- **<defect kind>** — seen as <finding IDs>; lint | test via <means>
 
 ## Promotion candidates (input to wellspec delta step 2)
 - **<candidate>** — seen at <locations>; would join <registry>
