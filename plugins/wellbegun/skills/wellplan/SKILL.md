@@ -63,6 +63,8 @@ is a complete producer/gate/consumer example, not mandatory project scaffolding.
 
 Derive `grade` from the reversal cost of decisions introduced or changed in this step: L/XL → fresh; S/M → basic. Merely using an existing L API is not an L change. An S/M producer at a new propagation boundary still requires an independent gate before consumers. Basic requires contract and affected checks, without a separate verifier. Check breadth follows impact separately from reversal grade.
 
+Set `round_limit` per contract from the spec's check contract. Use `2` when the completion clauses are covered by `lint`/`test` entries run by the check command, so fresh verification only judges interpretation and `review` entries. Omit it (default `3`) otherwise, including steps that build the check contract's own rules and rule tests, and every contract in a cycle without a check contract. Note the reason in one line beside the contract. The runtime accepts only `2` or `3` and fixes a scope's limit when the scope is created; raising it later needs `op:approve-rounds`.
+
 Commands must be available from previous work or created by this step, never depend on a later step. Observable UI checks are valid; do not split a coherent step just because a visual condition has no exit code. Specify phase integration and whole-run acceptance conditions too. Reuse valid results across step/gate/phase/final review rather than assigning the same full suite to every reviewer. See `<plugin-root>/references/reversibility-grades.md` for decision and verification policy.
 
 ## Output template
