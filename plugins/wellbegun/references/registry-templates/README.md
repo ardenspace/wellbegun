@@ -12,7 +12,7 @@ the plan record; `context --remember` then delivers it with deduplicated decisio
 Before state exists, read only the affected existing entry/code section. See
 `../selected-inputs.md`; do not initialize or migrate a cycle just for lookup.
 
-Code remains the source of truth. Avoid copying facts already maintained in code. Put an active registry near the code it describes; preserve project-owned instructions when adding relevant entry-reading guidance to AGENTS.md or CLAUDE.md. Do not require full roster or ledger reads.
+Code remains the source of truth. Avoid copying facts already maintained in code. When a code-derived list already exists, such as an `index.ts` export list or a Storybook, point to it instead of copying its rows into a registry table. Put an active registry near the code it describes; preserve project-owned instructions when adding relevant entry-reading guidance to AGENTS.md or CLAUDE.md. Do not require full roster or ledger reads.
 
 Elements explicitly planned as shared belong in the common layer from first use. Otherwise keep the first use local and assess promotion on the second actual use. Similar appearance alone does not establish a common contract.
 

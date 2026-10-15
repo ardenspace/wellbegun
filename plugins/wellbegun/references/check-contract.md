@@ -26,12 +26,24 @@ When a convention's wording does not fix its scope (for example "no raw values
 in screen code" — does a non-screen component count?), the chosen
 interpretation is a decision. Grade it with `reversibility-grades.md`.
 
+Each class also decides where the knowledge lives, so it costs context only
+when needed:
+
+- `lint`: in the rule's message, delivered only when the rule fires.
+- `review` needed in one area only: in that area's CLAUDE.md or AGENTS.md.
+- Needed by almost every task: a one-line pointer in the root instructions,
+  never the full list.
+
 ## Rule tests
 
 Every `lint` entry has at least one should-flag case and one should-pass case,
 linted at a real file path so the rule's file scope is tested too. The rule
 tests run inside the check command. A rule without them can silently match
 nothing.
+
+Write each rule message as a correction: what to use instead and where it
+lives, for example "Render UI text with AppText from @/ui/primitives." A
+message that only says what is forbidden sends the agent searching.
 
 Lint rules match syntax, not values: `const R = 6; borderRadius: R` passes a
 literal-only rule. Deliberate bypass stays a `review` concern.
