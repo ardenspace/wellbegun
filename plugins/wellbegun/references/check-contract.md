@@ -30,6 +30,7 @@ Each class also decides where the knowledge lives, so it costs context only
 when needed:
 
 - `lint`: in the rule's message, delivered only when the rule fires.
+- `test`: in the test name and assertion message, delivered only when it fails.
 - `review` needed in one area only: in that area's CLAUDE.md or AGENTS.md.
 - Needed by almost every task: a one-line pointer in the root instructions,
   never the full list.
