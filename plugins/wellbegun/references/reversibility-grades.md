@@ -15,7 +15,7 @@ Grade proportionately. Reuse approved choices and mode; do not request approval 
 
 Basic work can complete through contract and affected checks with the current agent. Reuse implementers inside a verified boundary. A new shared foundation needs an independent gate before its first consumer even when its producer is S/M; an L/XL fresh review or equivalent earlier phase integration may satisfy it. Gate failure blocks consumers; foundation changes invalidate affected gate results.
 
-Fresh review uses an independent context without implementer or previous verifier narratives. Valid check facts may be reused. Maximum three rounds per verification scope including the initial review; keep stable finding IDs through renames, SHA changes and contract rewording. Cap exhaustion preserves unresolved status in every mode. Only approved new scope starts a new unit; explicitly excluded findings are not passes. See wellrun for evidence, probe and completion rules.
+Fresh review uses an independent context without implementer or previous verifier narratives. Valid check facts may be reused. Maximum rounds per verification scope, including the initial review, follow the contract's `round_limit` (default three; two when the check contract covers the step); keep stable finding IDs through renames, SHA changes and contract rewording. Cap exhaustion preserves unresolved status in every mode. Only approved new scope starts a new unit; explicitly excluded findings are not passes. See wellrun for evidence, probe and completion rules.
 
 ## Decision records
 
