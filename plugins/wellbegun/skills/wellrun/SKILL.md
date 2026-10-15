@@ -28,7 +28,7 @@ First reconcile explicit session approval with artifact status; update a stale d
 
 Reuse the stored mode and existing user approval. On a first run with no choice, use **companion**: ask only for newly discovered L/XL decisions. **Autonomous** applies when authorized: choose the most reversible provisional option within that authority and report it. Neither mode permits passing a broken contract or exceeding execution permissions.
 
-Briefly show likely decision stops and required verification boundaries. Install only enforcement selected by the spec and needed for this project; do not invent a foundation or hook step at briefing.
+Briefly show likely decision stops and required verification boundaries. Install only the check contract's lint/test rules and hooks the spec selected for this project; do not invent a foundation or hook step at briefing.
 
 Default to one writer in the existing worktree. Inspect existing changes and scope; never revert, stash, overwrite or indiscriminately stage user changes. Commit only owned changes under project policy and existing authority. Choose isolation when ownership overlaps or a separate candidate is needed, explicitly preserving the required uncommitted baseline.
 

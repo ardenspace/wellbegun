@@ -32,7 +32,7 @@ directory name alone or initialize state to bypass an uncertain archive.
   route to the current lens. An approved plan with every record verified and no
   unresolved finding/pending question permits closing in its existing format.
 
-Not every change deserves this gate: bugfixes and small tweaks proceed without wellnext — the installed hooks keep guarding, and the next cycle's audit settles whatever accumulated. wellnext is for chunks of work.
+Not every change deserves this gate: bugfixes and small tweaks proceed without wellnext — the check command and any installed hooks keep guarding, and the next cycle's audit settles whatever accumulated. wellnext is for chunks of work.
 
 ## Step 1: Entry triage
 
@@ -45,7 +45,7 @@ Read the new work (feature list, flowchart, request), the current `begin.md` (id
 |---|---|
 | **begin entry** (delta begin) | either axis fires |
 | **spec entry** | neither fires; the work extends existing journeys |
-| **no pipeline** | too small for the pipeline — hooks keep guarding; just do the work |
+| **no pipeline** | too small for the pipeline — the check command and hooks keep guarding; just do the work |
 
 The axes are deliberately not "does it touch identity": the begin lens's value is the user lens itself (journeys, failure branches, probe angles), so a large development with intact identity still enters at begin.
 
@@ -55,7 +55,7 @@ For **no pipeline**, perform the authorized small change and run the spec's chec
 
 Only after triage identifies a cycle, inspect affected active registry entries and code. Expand to a whole-project audit only with evidence of broad drift. Skip N/A registries and reuse effective schema/type/lint checks.
 
-Record relevant roster/code drift, applicable enforcement results, and actual reuse opportunities in `.wellbegun/audit.md`. Correct confirmed owned index errors under existing project authority; preserve user changes and do not force a commit or invent a design choice. New public-contract decisions go to wellspec. Run checks for changed areas, reusing valid results. Promotion candidates need actual reuse or an approved shared plan, not similar appearance alone.
+Record relevant roster/code drift, applicable check-command and hook results, and actual reuse opportunities in `.wellbegun/audit.md`. Correct confirmed owned index errors under existing project authority; preserve user changes and do not force a commit or invent a design choice. New public-contract decisions go to wellspec. Run checks for changed areas, reusing valid results. Promotion candidates need actual reuse or an approved shared plan, not similar appearance alone.
 
 Read `.wellbegun/rule-candidates.md` when present. Promote a defect kind that appears twice or more, or once with an obvious lint/test means, into `## Rule promotions`; leave the rest out. Promotions are input to wellspec delta step 4, not rules built here.
 
@@ -64,9 +64,9 @@ Read `.wellbegun/rule-candidates.md` when present. Promote a defect kind that ap
 1. **Archive.** For schema 2, invoke the helper below before moving any other
    artifacts. It validates completion and archives plan/state/run, optional
    HANDOFF and cycle evidence together to `cycles/<stored-cycle>/`. On success,
-   stamp `closed` in the outgoing begin and move begin/spec, `rule-candidates.md` and the
-   previous cycle's audit, if present, into that same returned destination without
-   overwriting any file. Keep this cycle-opening audit at top level (create it
+   stamp `closed` in the outgoing begin and move begin/spec into that same returned
+   destination without overwriting any file. Move `rule-candidates.md` and the
+   previous cycle's audit there too, each only when it exists. Keep this cycle-opening audit at top level (create it
    separately from an outgoing audit if necessary). Before seeding, verify
    those moves; after interruption finish them before overwriting current files.
    Legacy uses the next free zero-padded `cycles/NN/`, preserving its original

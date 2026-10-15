@@ -57,6 +57,19 @@ class RoundLimitTests(unittest.TestCase):
         tx(root, {'op': 'reconcile', 'reason': 'tighten round limit'})
         self.assertEqual({'round': 0, 'limit': 3, 'allowance': 3}, state(root)['scopes']['scope-producer'])
 
+    def test_replan_raising_round_limit_keeps_existing_scope_limit(self):
+        root = self.project(producer=2)
+        records, _ = runtime.plan(root)
+        records['producer']['round_limit'] = 3
+        write_plan(root, list(records.values()))
+        tx(root, {'op': 'reconcile', 'reason': 'loosen round limit'})
+        self.assertEqual({'round': 0, 'limit': 2, 'allowance': 2}, state(root)['scopes']['scope-producer'])
+        start(root)
+        checking(root); fail(root)
+        checking(root); fail(root)
+        rec = state(root)['records']['producer']
+        self.assertEqual(('stopped', 'round_cap', 2), (rec['status'], rec['stop_reason'], rec['round']))
+
     def test_new_scope_from_replan_uses_round_limit(self):
         root = self.project()
         records, _ = runtime.plan(root)
