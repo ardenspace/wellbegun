@@ -1,6 +1,6 @@
 # Enforcement hooks
 
-wellbegun ships optional **generic, grep-based reference scripts**. Prefer existing effective lint, type and schema checks. Adapt a reference only for active areas and concrete enforcement needs, choosing relevant globs and paths. These scripts do not prove semantic registry compliance; no hook installation or foundation phase is required for unrelated work.
+wellbegun ships optional **generic, grep-based reference scripts**. They are a last resort: prefer the project's language linter, type checker and tests behind one check command (see `<plugin-root>/references/check-contract.md`). Text patterns cannot stop notation bypass, so their gaps are never REJECT grounds. Adapt a reference only for active areas and concrete enforcement needs that no linter can express, choosing relevant globs and paths. These scripts do not prove semantic registry compliance; no hook installation or foundation phase is required for unrelated work.
 
 The two reference checks:
 
