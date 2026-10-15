@@ -85,7 +85,7 @@ Expo 57 / React Native 0.86 / TypeScript 프로젝트에서 `.talpi/conventions.
 - CI: <workflow path> | local only
 ```
 
-델타 모드에서는 바뀐 항목만 쓴다. `audit.md`의 `## Rule promotions`가 추가 입력이 된다(설계 3 참조).
+델타 모드에서도 `command:`와 `CI:` 줄, 그리고 이번 사이클이 건드리는 영역의 항목은 바뀌지 않았더라도 다시 적는다. 검사 계약은 spec.md에만 있는데, spec.md는 사이클이 끝나면 보관 폴더로 옮겨지기 때문이다. 이번 사이클이 건드리지 않는 영역의 항목은 적지 않는다. `audit.md`의 `## Rule promotions`가 추가 입력이 된다(설계 3 참조).
 
 ### 2. wellplan: 스텝별 라운드 상한
 

@@ -59,7 +59,8 @@ with at least one existing file). Declare the actual dependency/input closure;
 the helper cannot discover undeclared dependencies. Execute checks in that
 workspace, regardless of where the helper was called.
 
-After basic implementation and successful affected checks, one
+After basic implementation and a successful check command (or affected checks
+when no check contract exists), one
 `op:complete-basic,record,target,checks` write completes it. No separate checking
 write, receipt copying or verifier is required. Each check records its actual
 `command,files,exit_status,environment,environment_known,external_state,covers`;
@@ -130,7 +131,7 @@ After the last allowed round fails, preserve the unresolved status. Ask for addi
 
 ### Checks and evidence
 
-Run each successful check once for the same valid inputs. Assign one execution owner, so conductor and verifier do not habitually duplicate commands. S/M uses contract and affected checks; fresh adds necessary regression and independent judgment. There is no mandatory full suite immediately before a fresh dispatch.
+Run each successful check once for the same valid inputs. Assign one execution owner, so conductor and verifier do not habitually duplicate commands. S/M uses the check command (or affected checks without a check contract) and contract checks; fresh adds necessary regression and independent judgment. There is no mandatory full suite immediately before a fresh dispatch.
 
 Record target commit or content identity (HEAD alone is insufficient for dirty code), scope, command, exit status, relevant environment/dependency identities and external-state dependence. Changed source, tests, configuration, dependencies or environment invalidate affected results. Uncertain external state is not reusable. Documentation-only SHA changes do not invalidate unchanged test inputs. A verifier may rerun a result it has reason to distrust; record the reason briefly.
 

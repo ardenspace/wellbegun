@@ -5,7 +5,7 @@ description: "Use when a wellbegun project has completed its pipeline (approved 
 
 # wellnext — the cycle gate
 
-Classify incoming work before auditing. Small fixes with no new expensive decision proceed directly with affected checks. For a new cycle, audit relevant areas, reuse existing authorization, archive completed work and seed the selected lens.
+Classify incoming work before auditing. Small fixes with no new expensive decision proceed directly with the spec's check command (or affected checks when no check contract exists). For a new cycle, audit relevant areas, reuse existing authorization, archive completed work and seed the selected lens.
 
 ## Guard
 

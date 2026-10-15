@@ -25,7 +25,7 @@ First reconcile explicit session approval with artifact status; update a stale d
 - `.wellbegun/spec.md` with `status: draft` → resume where the draft stops. If the draft marks a question as `open — asked user`, re-ask it before doing anything else: an interruption never converts a user question into an agent decision.
 - `.wellbegun/spec.md` missing → this skill applies: write `spec.md` from the output template with `status: draft` **now**, before step 1, and fill it in as the steps run — disk is the anchor.
 
-**Delta mode:** when begin.md's frontmatter carries `cycle: N` with N > 1, this spec covers the cycle's delta. Copy `cycle: N` into spec.md's frontmatter on creation, and apply the delta branches marked in steps 1–2 below. `.wellbegun/audit.md` (written by wellnext) is an additional input.
+**Delta mode:** when begin.md's frontmatter carries `cycle: N` with N > 1, this spec covers the cycle's delta. Copy `cycle: N` into spec.md's frontmatter on creation, and apply the delta branches marked in steps 1, 2 and 4 below. `.wellbegun/audit.md` (written by wellnext) is an additional input.
 
 ## Step 1: Resolve the expensive decision queue
 
@@ -64,7 +64,7 @@ Read `<plugin-root>/references/check-contract.md` (reuse it if already read in t
 5. **Text-pattern hooks are a last resort.** Use `<plugin-root>/references/hooks/` scripts only where no language linter can express the rule, and record beside the entry that it cannot stop notation bypass and its gaps are not REJECT grounds.
 6. **CI is optional.** Record a workflow path when the project has a remote and CI authority, otherwise `local only`. Running the check command locally satisfies completion either way.
 
-Delta mode: write only changed entries. `.wellbegun/audit.md` `## Rule promotions` is an additional input; plan each accepted promotion as a rule plus its rule tests.
+Delta mode: the check contract lives only in spec.md, which wellnext archives, so always restate the `command:` and `CI:` lines and every entry for areas this cycle touches, changed or not; omit entries for untouched areas. `.wellbegun/audit.md` `## Rule promotions` is an additional input; plan each accepted promotion as a rule plus its rule tests.
 
 ## Output template
 
