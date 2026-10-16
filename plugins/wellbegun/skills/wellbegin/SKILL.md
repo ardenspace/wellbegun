@@ -22,9 +22,12 @@ per context; do not load the full runtime contract for this lens.
 First reconcile explicit session approval with artifact status; update a stale draft flag for that approved scope instead of restarting planning.
 
 Check `.wellbegun/begin.md` first:
+- `entry: none` → an adopted project with no cycle open; route to wellnext.
 - `status: approved` → do not restart the conversation. Route to wellspec.
+- `entry: pending` with `adopted_from` → adoption in progress; route to wellnext.
 - `status: draft` → resume from its status table: reopen the bundles with uncovered angles or open questions.
-- missing → create `.wellbegun/` and write `begin.md` from the template below **immediately, before the conversation starts** — disk is the anchor from the first turn, and an empty status table is what makes resumption possible.
+- missing, and the project already has code or another tool's planning documents → route to wellnext to adopt it, unless the user asks to reshape the product from scratch.
+- missing otherwise → create `.wellbegun/` and write `begin.md` from the template below **immediately, before the conversation starts** — disk is the anchor from the first turn, and an empty status table is what makes resumption possible.
 
 ## Existing decisions and authority
 

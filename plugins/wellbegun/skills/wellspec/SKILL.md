@@ -21,6 +21,7 @@ decision/registry lookup (reuse it if already read in this context).
 First reconcile explicit session approval with artifact status; update a stale draft flag for that approved scope instead of restarting planning.
 
 - `.wellbegun/begin.md` missing or not `status: approved` → stop and route to wellbegin.
+- `begin.md` with `entry: none` or `entry: pending` → no cycle is open; route to wellnext.
 - `.wellbegun/spec.md` with `status: approved` → route to wellplan.
 - `.wellbegun/spec.md` with `status: draft` → resume where the draft stops. If the draft marks a question as `open — asked user`, re-ask it before doing anything else: an interruption never converts a user question into an agent decision.
 - `.wellbegun/spec.md` missing → this skill applies: write `spec.md` from the output template with `status: draft` **now**, before step 1, and fill it in as the steps run — disk is the anchor.

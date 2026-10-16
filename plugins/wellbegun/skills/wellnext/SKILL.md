@@ -1,6 +1,6 @@
 ---
 name: wellnext
-description: "Use when a wellbegun project has completed its pipeline (approved plan, finished run) and a new chunk of work arrives — a feature list, a flowchart, an n-th development round. Cycle gate: triages work, audits affected areas when needed, archives the finished cycle, and seeds the next one."
+description: "Use when a wellbegun project has completed its pipeline (approved plan, finished run) and a new chunk of work arrives — a feature list, a flowchart, an n-th development round — or when wellbegun is first adopted into a project that already has code or another tool's planning documents. Cycle gate: adopts existing projects, triages work, audits affected areas when needed, archives the finished cycle, and seeds the next one."
 ---
 
 # wellnext — the cycle gate
@@ -23,7 +23,12 @@ only the matching begin/spec/outgoing-audit moves without overwriting files,
 then seed the authorized next cycle. Do not guess a match from the latest
 directory name alone or initialize state to bypass an uncertain archive.
 
-- `.wellbegun/` missing → not a wellbegun project yet; route to wellbegin.
+- `.wellbegun/` missing and the project already has code or another tool's
+  planning documents → run Step 0 (adopt). Missing with neither → route to wellbegin.
+- `begin.md` with `adopted_from` and `entry: pending` → adoption was interrupted;
+  resume Step 0 at the first unfinished item.
+- `begin.md` with `entry: none` and no plan or state → an adopted project with no
+  cycle open; triage the new work with Step 1 against it.
 - `.wellbegun/pending/` non-empty → answers are owed; route to wellrun.
 - Schema 2: bootstrap via `context --remember`; only a valid `cursor:complete`
   permits closing. Pending, stopped, drift or unresolved findings route to wellrun.
@@ -33,6 +38,16 @@ directory name alone or initialize state to bypass an uncertain archive.
   unresolved finding/pending question permits closing in its existing format.
 
 Not every change deserves this gate: bugfixes and small tweaks proceed without wellnext — the check command and any installed hooks keep guarding, and the next cycle's audit settles whatever accumulated. wellnext is for chunks of work.
+
+## Step 0: Adopt an existing project
+
+Adoption replaces the missing previous cycle with what the project already records. Nothing is archived.
+
+1. **Draft begin.md.** Read the existing planning documents (spec, decision log, README) and only the code needed to confirm them. Write `.wellbegun/begin.md` with `status: draft` and frontmatter `cycle: 1`, `entry: pending`, `opened: YYYY-MM-DD`, `adopted_from: [<source paths>]`. Fill the identity decisions, current journeys and non-goals, each with its source. Mark anything the sources do not settle `unconfirmed` instead of inferring it; the expensive-decision queue starts empty.
+2. **Carry decisions.** Record in `decisions.md` only the active L/XL decisions that constrain current work, each with a source pointer, per `<plugin-root>/references/reversibility-grades.md`. Do not convert the full history.
+3. **Confirm with the user.** No previous cycle authorized these answers, so show the draft's identity decisions, journeys, non-goals and `unconfirmed` items and ask for one confirmation. This replaces the seven-bundle conversation; do not run it. Apply corrections before triage.
+4. **Triage** the new work against the confirmed begin.md with Step 1, then set `entry`. Spec entry → set `status: approved` (the user's confirmation supplies it) and add the delta-journey summary. Begin entry → keep `status: draft` with the confirmed decisions as the inherited-identity section. No pipeline → set `entry: none` and `status: approved`, keeping the confirmed begin.md for the next chunk of work, and do the change.
+5. **Audit and route.** Run Step 2 for affected areas, skip Step 3's archive and seed (begin.md is already written), then route per Step 3.3.
 
 ## Step 1: Entry triage
 

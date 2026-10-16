@@ -18,7 +18,7 @@ Four lenses and a cycle gate, one pipeline — begin → spec → plan → run, 
 - **Spec (developer lens).** Resolves the queued decisions with a reversal-cost grade (S/M/L/XL) and a short rationale. Defines the global registries: design tokens, shared components, backend common layers, schema. Cheap decisions are deliberately left blank — marked "implementer's discretion."
 - **Plan.** Create only needed foundations and active registries. Every step gets a contract before implementation, with completion clauses, checks and explicit dependencies. New shared foundations have an independent gate before consumers.
 - **Run.** Basic work runs directly and reuses an implementer within a verified boundary. Fresh reviews use independent contexts with contracts, code and valid check facts. Failed gates, unanswered questions and unresolved round caps block dependent work.
-- **Next (cycle gate).** Triage the request first: small fixes proceed directly; larger work gets an affected-area audit and the appropriate begin/spec entry. Reuse existing authorization to archive completed work and seed the next cycle. Supersede overturned decisions without erasing them.
+- **Next (cycle gate).** Adopt a project that already has code or another tool's planning documents by drafting begin.md from them for one user confirmation. Triage the request first: small fixes proceed directly; larger work gets an affected-area audit and the appropriate begin/spec entry. Reuse existing authorization to archive completed work and seed the next cycle. Supersede overturned decisions without erasing them.
 
 Composable by design: wellbegun owns the pipeline but delegates implementation techniques to whatever your environment provides (e.g. Superpowers' TDD and debugging skills).
 
@@ -54,7 +54,7 @@ The three pipeline artifacts (`begin.md`, `spec.md`, `plan.md`) carry `status: d
 
 ## Status
 
-Current release: **0.7.1** — [release notes](docs/releases/0.7.1.md).
+Current release: **0.7.2** — [release notes](docs/releases/0.7.2.md).
 
 Lean runtime and skill integration passed independent foundation and final review,
 with 88 runtime/lifecycle tests at that review (99 as of 0.7.0) and bounded fixed-copy comparisons. The matched
