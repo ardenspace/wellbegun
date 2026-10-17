@@ -30,7 +30,7 @@ Reuse the stored mode and existing user approval. On a first run with no choice,
 
 Briefly show likely decision stops and required verification boundaries. Install only the check contract's lint/test rules and hooks the spec selected for this project; do not invent a foundation or hook step at briefing.
 
-Default to one writer in the existing worktree. Inspect existing changes and scope; never revert, stash, overwrite or indiscriminately stage user changes. Commit only owned changes under project policy and existing authority. Choose isolation when ownership overlaps or a separate candidate is needed, explicitly preserving the required uncommitted baseline.
+Default to one writer in the existing worktree. Inspect existing changes and scope; never revert, stash, overwrite or indiscriminately stage user changes. Commit only owned changes under project policy and existing authority. Project policy is in the documents `begin.md` lists under `conventions`, the project's CLAUDE.md/AGENTS.md, or its contributing guide; read the commit rules there before the first record. With no stated policy, commit a record's owned changes once it is verified, before starting the next record. Never push without authority. Choose isolation when ownership overlaps or a separate candidate is needed, explicitly preserving the required uncommitted baseline.
 
 ## Schema 2 execution
 
@@ -121,6 +121,7 @@ On failure, fix the producer before consumers proceed. A change to the foundatio
 - Without subagents, basic still runs. At a fresh boundary, prepare the same packet for a separate independent session and wait. Same-context self-review is not fresh. Git, hooks and context-usage APIs are not prerequisites for basic execution.
 - REJECT must identify a violated contract clause and reproduction evidence. Report outside-contract suggestions separately; they do not block completion unless they expose a new L/XL choice or a defect in the current contract. Give the fixer failed clauses and reproduction facts. Reverification uses a new independent context. A rule gap is REJECT grounds only when the verifier reproduces an actual violation present in the current code; the fixer then fixes the code. A theoretical bypass is an outside-contract finding. Gaps in text-pattern hooks are never REJECT grounds.
 - **Rule candidates.** When a finding's defect kind could be mechanized as lint or test, fix the code and add one line to `.wellbegun/rule-candidates.md`: `- <finding ID>: <defect kind> — lint | test via <means>`. Do not build new rules during the cycle; wellnext promotes candidates into the next cycle's check contract. This file is not derived state; schema 2 `run.md` stays helper-written.
+- **Deferred findings.** Add each outside-contract finding that is neither fixed nor dismissed as one line in `.wellbegun/deferred.md`: `- <record ID>: <finding> — <why deferred>`. A finding also listed in `rule-candidates.md` needs no second line. This file is not derived state; legacy cycles may keep using `run.md`'s `## Deferred`.
 - The observable Goal and acceptance criteria determine completion. A diff limited to tests, hooks, documentation or comments is not evidence that the deliverable is complete.
 
 ### Rounds and unresolved findings
@@ -143,7 +144,7 @@ Phase integration uses a fresh context to verify the phase's composition and nec
 
 ## Legacy progress and checkpoint
 
-Keep one current line per record in `.wellbegun/run.md`, with the saved mode in frontmatter. Use `[ ]` queued, `[>]` active/stopped, `[x]` verified. Record status, target identity, round, stable unresolved finding IDs, short check results, evidence pointers and next action. Keep raw logs and failed-round narratives in evidence files, not growing single lines. A stopped contract violation cannot be hidden under `## Deferred`; that section is for outside-contract work.
+Keep one current line per record in `.wellbegun/run.md`, with the saved mode in frontmatter. Use `[ ]` queued, `[>]` active/stopped, `[x]` verified. Record status, target identity, round, stable unresolved finding IDs, short check results, evidence pointers and next action. Keep raw logs and failed-round narratives in evidence files, not growing single lines. A stopped contract violation cannot be hidden under `## Deferred` or in `deferred.md`; both are for outside-contract work.
 
 Checkpoint after a step, verification round or gate, on a decision wait, user interruption, or host context-shortage signal. Do not guess usage percentages. Preserve work location, current target, contract, round and resume action. Reports normally contain status, target ID, changed scope, checks, unresolved findings and next action within 300 words; detailed findings live in referenced files.
 
@@ -151,4 +152,4 @@ Checkpoint after a step, verification round or gate, on a decision wait, user in
 
 For a legacy cycle's new decision requiring an answer, write `.wellbegun/pending/<slug>.md` with the question, situation, options and reversal grades, recommendation, and how to answer. Schema 2 uses the JSON question protocol above. Notifications are optional and require existing channel authorization; see `<plugin-root>/references/hooks/README.md`.
 
-After all contracts and required gates/reviews pass, report completed work, valid verification, remaining outside-contract findings and provisional decisions. A missing independent verifier or unresolved contract means stopped, not complete.
+After all contracts and required gates/reviews pass, report completed work, valid verification, remaining outside-contract findings (pointing to `deferred.md`) and provisional decisions. A missing independent verifier or unresolved contract means stopped, not complete.

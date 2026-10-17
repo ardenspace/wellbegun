@@ -43,7 +43,7 @@ Not every change deserves this gate: bugfixes and small tweaks proceed without w
 
 Adoption replaces the missing previous cycle with what the project already records. Nothing is archived.
 
-1. **Draft begin.md.** Read the existing planning documents (spec, decision log, README) and only the code needed to confirm them. Write `.wellbegun/begin.md` with `status: draft` and frontmatter `cycle: 1`, `entry: pending`, `opened: YYYY-MM-DD`, `adopted_from: [<source paths>]`. Fill the identity decisions, current journeys and non-goals, each with its source. Mark anything the sources do not settle `unconfirmed` instead of inferring it; the expensive-decision queue starts empty.
+1. **Draft begin.md.** Read the existing planning documents (spec, decision log, README) and only the code needed to confirm them. Write `.wellbegun/begin.md` with `status: draft` and frontmatter `cycle: 1`, `entry: pending`, `opened: YYYY-MM-DD`, `adopted_from: [<source paths>]`, and `conventions: [<paths>]` naming the existing working-convention documents (commit and branch rules, coding conventions) so later lenses read them in place. Fill the identity decisions, current journeys and non-goals, each with its source. Mark anything the sources do not settle `unconfirmed` instead of inferring it; the expensive-decision queue starts empty.
 2. **Carry decisions.** Record in `decisions.md` only the active L/XL decisions that constrain current work, each with a source pointer, per `<plugin-root>/references/reversibility-grades.md`. Do not convert the full history.
 3. **Confirm with the user.** No previous cycle authorized these answers, so show the draft's identity decisions, journeys, non-goals and `unconfirmed` items and ask for one confirmation. This replaces the seven-bundle conversation; do not run it. Apply corrections before triage.
 4. **Triage** the new work against the confirmed begin.md with Step 1, then set `entry`. Spec entry → set `status: approved` (the user's confirmation supplies it) and add the delta-journey summary. Begin entry → keep `status: draft` with the confirmed decisions as the inherited-identity section. No pipeline → set `entry: none` and `status: approved`, keeping the confirmed begin.md for the next chunk of work, and do the change.
@@ -51,7 +51,7 @@ Adoption replaces the missing previous cycle with what the project already recor
 
 ## Step 1: Entry triage
 
-Read the new work (feature list, flowchart, request), the current `begin.md` (identity decisions, non-goals), related active decision entries, relevant items from the outgoing `run.md`'s `## Deferred` section. Use current constraints only. Test two axes:
+Read the new work (feature list, flowchart, request), the current `begin.md` (identity decisions, non-goals), related active decision entries, relevant items from `.wellbegun/deferred.md` (or a legacy `run.md`'s `## Deferred` section). Use current constraints only. Test two axes:
 
 - **Axis 1 — does it overturn?** The new work contradicts an identity decision or a non-goal in the current begin.md.
 - **Axis 2 — does it add a journey?** The new work introduces a user journey the current begin.md does not have, large enough to carry its own failure branches.
@@ -80,12 +80,12 @@ Read `.wellbegun/rule-candidates.md` when present. Promote a defect kind that ap
    artifacts. It validates completion and archives plan/state/run, optional
    HANDOFF and cycle evidence together to `cycles/<stored-cycle>/`. On success,
    stamp `closed` in the outgoing begin and move begin/spec into that same returned
-   destination without overwriting any file. Move `rule-candidates.md` and the
+   destination without overwriting any file. Move `rule-candidates.md`, `deferred.md` and the
    previous cycle's audit there too, each only when it exists. Keep this cycle-opening audit at top level (create it
    separately from an outgoing audit if necessary). Before seeding, verify
    those moves; after interruption finish them before overwriting current files.
    Legacy uses the next free zero-padded `cycles/NN/`, preserving its original
-   begin/spec/plan/run/audit format, moving `rule-candidates.md` with them, and manually confirming all blockers are clear.
+   begin/spec/plan/run/audit format, moving `rule-candidates.md` and `deferred.md` with them, and manually confirming all blockers are clear.
    Both paths preserve top-level decisions/indexes/registries and append only a
    needed cycle heading to the original ledger, without converting history.
    Archived files are immutable. Without reliable dates, record unknown.

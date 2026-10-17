@@ -54,7 +54,7 @@ The three pipeline artifacts (`begin.md`, `spec.md`, `plan.md`) carry `status: d
 
 ## Status
 
-Current release: **0.7.2** — [release notes](docs/releases/0.7.2.md).
+Current release: **0.7.3** — [release notes](docs/releases/0.7.3.md).
 
 Lean runtime and skill integration passed independent foundation and final review,
 with 88 runtime/lifecycle tests at that review (99 as of 0.7.0) and bounded fixed-copy comparisons. The matched
