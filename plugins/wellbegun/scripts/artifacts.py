@@ -19,6 +19,7 @@ DECISION_LIMIT = 1024
 PAGE = 6000
 STATUSES = {'queued', 'implementing', 'checking', 'fixing', 'stopped', 'verified'}
 ACTIVE = {'implementing', 'checking', 'fixing'}
+PERSPECTIVES = ('goal', 'abuse', 'money')
 
 
 class Error(Exception):
@@ -104,7 +105,12 @@ def plan(root):
         identifier(rec['id']); identifier(rec['scope_id'])
         need(key == rec['id'] and key not in records, 'invalid_plan', 'Duplicate or mismatched contract ID')
         need(rec['kind'] in {'step', 'gate', 'phase', 'whole-run'} and rec['grade'] in {'basic', 'fresh'}, 'invalid_plan', 'Invalid kind or grade')
-        need(rec['kind'] == 'step' or rec['grade'] == 'fresh', 'invalid_plan', 'Gates and integration require fresh verification')
+        need(rec['kind'] in {'step', 'phase'} or rec['grade'] == 'fresh', 'invalid_plan', 'Gates and whole-run require fresh verification')
+        if 'perspectives' in rec:
+            value = rec['perspectives']
+            need(rec['grade'] == 'fresh' and isinstance(value, list) and value and all(isinstance(x, str) for x in value)
+                 and len(set(value)) == len(value) and set(value) <= set(PERSPECTIVES),
+                 'invalid_plan', f'{key}: perspectives must be a nonempty unique subset of {", ".join(PERSPECTIVES)} on a fresh record')
         if 'round_limit' in rec:
             need(type(rec['round_limit']) is int and rec['round_limit'] in {2, 3}, 'invalid_plan', f'{key}: round_limit must be 2 or 3')
         for name in ['scope_id', 'goal', 'discretion']:
@@ -144,6 +150,21 @@ def plan(root):
             if any(p in ancestors(consumer) for p in rec['producers']):
                 need(key in ancestors(consumer), 'invalid_plan', f'{consumer}: transitive gate bypass')
     return records, digest(records)
+
+
+def perspectives_of(contract):
+    if contract.get('perspectives'):
+        return list(contract['perspectives'])
+    return list(PERSPECTIVES) if contract['kind'] == 'whole-run' else []
+
+
+def parallel(contract):
+    """Whole-run review runs one verifier per perspective inside one round."""
+    return contract['kind'] == 'whole-run' and len(perspectives_of(contract)) > 1
+
+
+def accept_verdict(verdict, cid):
+    return isinstance(verdict, dict) and verdict.get('status') == 'ACCEPT' and verdict.get('independent') is True and verdict.get('context_id') == cid
 
 
 def source(root, ref):
@@ -313,7 +334,15 @@ def validate_state(root, state, records, pdigest, drift=False):
                 contract = records[key]
                 need(set(contract['verification']) <= {c['command'] for c in checks} and {c['id'] for c in contract['completion']} <= {clause for c in checks for clause in c['covers']}, 'invalid_evidence', 'Verified result does not cover contract')
                 need(all(state['records'][d]['status'] == 'verified' for d in contract['requires']), 'invalid_state', 'Verified prerequisite is not verified')
-                if contract['grade'] == 'fresh':
+                # A whole-run verified with one verdict before 0.8.0 stays valid.
+                if contract['grade'] == 'fresh' and parallel(contract) and 'verdicts' in result:
+                    verdicts = result.get('verdicts') or {}
+                    need(isinstance(verdicts, dict) and set(verdicts) == set(perspectives_of(contract))
+                         and all(isinstance(v, dict) and v.get('context_id') in rec['verifier_contexts'] and accept_verdict(v, v.get('context_id')) for v in verdicts.values()),
+                         'invalid_evidence', 'Whole-run result lacks an independent ACCEPT for every perspective')
+                    for v in verdicts.values():
+                        independent(records, state, key, v['context_id'])
+                elif contract['grade'] == 'fresh':
                     verdict = result.get('verdict') or {}
                     need(verdict.get('status') == 'ACCEPT' and verdict.get('independent') is True and verdict.get('context_id') == rec['current_verifier'], 'invalid_evidence', 'Fresh result lacks current independent ACCEPT')
                     independent(records, state, key, rec['current_verifier'])
@@ -764,6 +793,8 @@ def invalidate(root, state, records, changed, reason, content_changed=(), preser
                 rec['next_action'] = 'run contract checks'
             rec.update(status='stopped', resume_status='checking' if previous == 'verified' else previous,
                        stop_reason='recheck_required')
+        if 'accepted_perspectives' in rec or 'perspective_verifiers' in rec:
+            rec.update(accepted_perspectives={}, perspective_verifiers={})
         if rec['status'] == 'stopped':
             # Invalidating success never answers a question or releases a saved stop.
             # Reconcile acknowledges current identities, not a successful check.
@@ -949,7 +980,7 @@ def apply_status(root, records, state, payload):
         fields(payload, ['target', 'actor', 'workspace', 'context_id'], 'start')
         need(payload['actor'] is None or isinstance(payload['actor'], str), 'invalid_input', 'actor must be string or null')
         need(payload['workspace'] == str(root.parent.resolve()), 'workspace_drift', 'Workspace must match actual project root')
-        audience = 'implementer' if contract['kind'] == 'step' else 'verifier'
+        audience = 'implementer' if contract['kind'] == 'step' or contract['grade'] == 'basic' else 'verifier'
         ensure_reads(root, records, state, key, cid, audience)
         snap = snapshot(root, payload['target'])
         need(any(v is not None for v in snap.values()), 'invalid_input', 'Target must identify at least one existing input file')
@@ -986,7 +1017,12 @@ def apply_status(root, records, state, payload):
         if payload.get('target'):
             rec['target'] = snapshot(root, payload['target'])
         need(valid_snapshot(root, rec['target']), 'code_drift', 'Update actual target at checkpoint before checking')
-        if contract['grade'] == 'fresh':
+        if contract['grade'] == 'fresh' and parallel(contract):
+            if not payload.get('verifier_context_ids'):
+                rec.update(status='stopped', resume_status='checking', stop_reason='independent_verifier_unavailable')
+                return
+            enter_parallel(root, records, state, key, payload)
+        elif contract['grade'] == 'fresh':
             verifier = payload.get('verifier_context_id')
             if not verifier:
                 rec.update(status='stopped', resume_status='checking', stop_reason='independent_verifier_unavailable')
@@ -1000,6 +1036,9 @@ def apply_status(root, records, state, payload):
         rec['round_inflight'] = True
         if old != 'stopped' or rec['next_action'] in {'start', 'continue'}:
             rec['next_action'] = 'run contract checks'
+    elif old == 'stopped' and target_status == 'checking' and contract['grade'] == 'fresh' and parallel(contract) and rec['current_verifier'] is None:
+        if resume_parallel(root, records, state, key, payload) == 'round_cap':
+            return
     elif old == 'stopped' and target_status == 'checking' and contract['grade'] == 'fresh':
         verifier = payload.get('verifier_context_id')
         independent(records, state, key, verifier, current_target=True)
@@ -1017,15 +1056,19 @@ def apply_status(root, records, state, payload):
         need(rec['round_inflight'], 'invalid_state', 'No in-flight checking round')
         need(valid_snapshot(root, rec['target']), 'code_drift', 'Checked target changed')
         need(rec['input_digest'] == digest(selected_sections(root, contract)), 'input_drift', 'Required constraints changed; reconcile before result')
-        ensure_reads(root, records, state, key, cid, 'implementer' if contract['grade'] == 'basic' else 'verifier')
+        # A round started on the single-verifier path before 0.8.0 finishes on it.
+        many = contract['grade'] == 'fresh' and parallel(contract) and rec['current_verifier'] is None
+        if not many:
+            ensure_reads(root, records, state, key, cid, 'implementer' if contract['grade'] == 'basic' else 'verifier')
         checks = check_results(root, state, rec, contract, payload)
+        verdicts = parallel_result(records, state, key, payload, target_status) if many else None
         clauses = {c['id'] for c in contract['completion']}
         if target_status == 'verified':
             need(checks and all(c['exit_status'] == 0 for c in checks), 'failed_checks', 'Successful checks required')
             need(set(contract['verification']) <= {c['command'] for c in checks}, 'failed_checks', 'Required verification commands missing')
             need(clauses <= {clause for c in checks for clause in c['covers']}, 'failed_checks', 'Completion clauses not covered')
             need(all(state['records'][dep]['status'] == 'verified' for dep in contract['requires']), 'blocked', 'Predecessor/gate invalidated')
-            if contract['grade'] == 'fresh':
+            if contract['grade'] == 'fresh' and not many:
                 verdict = payload.get('verdict', {})
                 independent(records, state, key, cid, current_target=True)
                 need(verdict.get('status') == 'ACCEPT' and verdict.get('independent') is True and verdict.get('context_id') == cid and cid == rec['current_verifier'], 'not_independent', 'Current independent ACCEPT required')
@@ -1034,8 +1077,9 @@ def apply_status(root, records, state, payload):
                 state['findings'][fid]['status'] = 'resolved'
             need(not any(f['scope_id'] == contract['scope_id'] and f['status'] == 'unresolved' for f in state['findings'].values()), 'unresolved', 'Unresolved contract violations cannot be verified')
         else:
-            need(isinstance(payload.get('findings'), list) and payload['findings'], 'invalid_input', 'REJECT needs stable finding and reproduction')
-            for f in payload['findings']:
+            if not many:
+                need(isinstance(payload.get('findings'), list) and payload['findings'], 'invalid_input', 'REJECT needs stable finding and reproduction')
+            for f in payload.get('findings', []):
                 fields(f, ['id', 'clause', 'reproduction'], 'finding')
                 identifier(f['id'], 'finding ID')
                 need(f['clause'] in clauses and isinstance(f['reproduction'], str) and f['reproduction'], 'invalid_input', 'Finding needs failed clause and reproduction')
@@ -1046,12 +1090,92 @@ def apply_status(root, records, state, payload):
                     rec['finding_ids'].append(f['id'])
             if state['scopes'][contract['scope_id']]['round'] >= state['scopes'][contract['scope_id']]['limit']:
                 target_status = 'stopped'; rec.update(resume_status='fixing', stop_reason='round_cap')
-        pointer = write_evidence(root, {'kind': 'result', 'record': key, 'scope_id': contract['scope_id'], 'contract_digest': digest(contract), 'input_digest': rec['input_digest'], 'target': rec['target'], 'round': rec['round'], 'checks': checks, 'verdict': payload.get('verdict'), 'finding_ids': list(rec['finding_ids'])})
+        result = {'kind': 'result', 'record': key, 'scope_id': contract['scope_id'], 'contract_digest': digest(contract), 'input_digest': rec['input_digest'], 'target': rec['target'], 'round': rec['round'], 'checks': checks, 'verdict': payload.get('verdict'), 'finding_ids': list(rec['finding_ids'])}
+        if many:
+            result['verdicts'] = verdicts
+        pointer = write_evidence(root, result)
         rec['evidence'].append(pointer)
         rec['current_result'] = pointer
         rec['round_inflight'] = False
         rec['next_action'] = 'continue' if target_status == 'verified' else 'resolve findings'
     rec['status'] = target_status
+
+
+def enter_parallel(root, records, state, key, payload):
+    """Start a whole-run round: one new verifier per perspective not yet accepted."""
+    rec, contract = state['records'][key], records[key]
+    accepted = dict(rec.get('accepted_perspectives') or {})
+    rerun = payload.get('rerun_perspectives', [])
+    need(isinstance(rerun, list) and set(rerun) <= set(perspectives_of(contract)), 'invalid_input', 'Unknown rerun perspective')
+    for name in rerun:
+        accepted.pop(name, None)
+    required = sorted(set(perspectives_of(contract)) - set(accepted))
+    verifiers = payload['verifier_context_ids']
+    need(isinstance(verifiers, dict) and required and sorted(verifiers) == required, 'invalid_input', 'Verifiers must cover exactly the perspectives not yet accepted', required=required)
+    need(len(set(verifiers.values())) == len(verifiers), 'invalid_input', 'Each perspective needs its own verifier context')
+    for verifier in verifiers.values():
+        identifier(verifier, 'verifier context')
+        independent(records, state, key, verifier, current_target=True)
+        need(verifier not in rec['verifier_contexts'], 'not_independent', 'Reverification requires a new independent context')
+        ensure_reads(root, records, state, key, verifier, 'verifier')
+    rec['verifier_contexts'].extend(verifiers.values())
+    rec.update(perspective_verifiers=dict(verifiers), accepted_perspectives=accepted, current_verifier=None)
+
+
+def resume_parallel(root, records, state, key, payload):
+    """Resume an in-flight whole-run round; replacing a verifier starts a new round."""
+    rec, contract = state['records'][key], records[key]
+    current = rec.get('perspective_verifiers') or {}
+    verifiers = payload.get('verifier_context_ids', current)
+    need(isinstance(verifiers, dict) and current and set(verifiers) == set(current), 'invalid_input', 'Resume needs a verifier for each in-flight perspective')
+    replaced = {name: cid for name, cid in verifiers.items() if cid != current[name]}
+    for verifier in verifiers.values():
+        independent(records, state, key, verifier, current_target=True)
+        ensure_reads(root, records, state, key, verifier, 'verifier')
+    if not replaced:
+        return None
+    need(len(set(verifiers.values())) == len(verifiers) and not set(replaced.values()) & set(rec['verifier_contexts']), 'not_independent', 'Replacement verifier must use a new independent context')
+    scope = state['scopes'][contract['scope_id']]
+    if scope['round'] >= scope['limit']:
+        rec.update(status='stopped', resume_status='checking', stop_reason='round_cap', round_inflight=False)
+        return 'round_cap'
+    state['events'].append(write_evidence(root, {'kind': 'verifier-replacement', 'record': key, 'previous_verifiers': current, 'verifiers': verifiers, 'previous_round': rec['round'], 'next_round': scope['round'] + 1}))
+    scope['round'] += 1; rec['round'] = scope['round']
+    rec['verifier_contexts'].extend(replaced.values())
+    rec['perspective_verifiers'] = dict(verifiers)
+    return None
+
+
+def parallel_result(records, state, key, payload, target_status):
+    """Check per-perspective verdicts; return the verdict map to store as evidence."""
+    rec, contract = state['records'][key], records[key]
+    current = rec.get('perspective_verifiers') or {}
+    accepted = dict(rec.get('accepted_perspectives') or {})
+    verdicts = payload.get('verdicts', {})
+    need(isinstance(verdicts, dict) and set(verdicts) <= set(current), 'not_independent', 'Verdicts must come from this round\'s perspective verifiers')
+    for name, verdict in verdicts.items():
+        need(accept_verdict(verdict, current[name]), 'not_independent', 'Perspective verdict must be the current independent ACCEPT', perspective=name)
+        independent(records, state, key, verdict['context_id'], current_target=True)
+    if target_status == 'verified':
+        need(set(verdicts) == set(current), 'not_independent', 'Every perspective verifier of this round must ACCEPT')
+        merged = {name: {'status': 'ACCEPT', 'independent': True, 'context_id': cid} for name, cid in accepted.items()}
+        merged.update(verdicts)
+        need(set(merged) == set(perspectives_of(contract)), 'not_independent', 'Every perspective needs an independent ACCEPT')
+        rec['accepted_perspectives'] = {name: v['context_id'] for name, v in merged.items()}
+        return merged
+    findings = payload.get('findings', [])
+    recheck = payload.get('recheck_perspectives', [])
+    need(isinstance(findings, list) and isinstance(recheck, list) and (findings or recheck), 'invalid_input', 'REJECT needs findings or perspectives to recheck')
+    need(set(recheck) <= set(perspectives_of(contract)), 'invalid_input', 'Unknown recheck perspective')
+    for f in findings:
+        need(isinstance(f, dict) and isinstance(f.get('id'), str), 'invalid_input', 'Finding needs an ID')
+        prefix = f['id'].split('-', 1)[0]
+        need('-' in f['id'] and prefix in current and prefix not in verdicts, 'invalid_input', 'Finding ID must start with a rejecting perspective of this round, e.g. abuse-1')
+    accepted.update({name: v['context_id'] for name, v in verdicts.items()})
+    for name in recheck:
+        accepted.pop(name, None)
+    rec['accepted_perspectives'] = accepted
+    return verdicts
 
 
 def register_implementer(root, records, state, key, cid):

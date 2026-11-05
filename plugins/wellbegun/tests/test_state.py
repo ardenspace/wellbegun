@@ -8,7 +8,7 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
-from test_support import add_decision, attach_decision, change_decision, checking, create_project, read_all, record_success, runtime, start, state, success_payload, tx, write_plan
+from test_support import add_decision, attach_decision, change_decision, checking, single_kind, create_project, read_all, record_success, runtime, start, state, success_payload, tx, write_plan
 
 
 class StateTests(unittest.TestCase):
@@ -369,7 +369,7 @@ class StateTests(unittest.TestCase):
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
                 root = create_project(directory)
                 records, _ = runtime.plan(root)
-                records['gate']['kind'] = kind
+                records['gate'].update(single_kind(kind))
                 records['consumer'].update(kind='phase', grade='fresh')
                 write_plan(root, list(records.values()))
                 tx(root, {'op': 'reconcile', 'reason': 'test all supported fresh record kinds'})
@@ -393,7 +393,7 @@ class StateTests(unittest.TestCase):
         for kind in ['gate', 'phase', 'whole-run']:
             with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
                 root = create_project(directory)
-                records, _ = runtime.plan(root); records['gate']['kind'] = kind
+                records, _ = runtime.plan(root); records['gate'].update(single_kind(kind))
                 write_plan(root, list(records.values())); tx(root, {'op': 'reconcile', 'reason': 'fresh record kind'})
                 start(root); checking(root); record_success(root)
                 start(root, 'gate', 'reviewer', 'verifier')
@@ -510,7 +510,7 @@ class StateTests(unittest.TestCase):
             for boundary in ['checking', 'verified']:
                 with self.subTest(kind=kind, boundary=boundary), tempfile.TemporaryDirectory() as directory:
                     root = create_project(directory)
-                    contracts, _ = runtime.plan(root); contracts['gate']['kind'] = kind
+                    contracts, _ = runtime.plan(root); contracts['gate'].update(single_kind(kind))
                     write_plan(root, list(contracts.values())); tx(root, {'op': 'reconcile', 'reason': 'supported fresh scope'})
                     index = attach_decision(root)
                     start(root); checking(root); record_success(root)

@@ -119,3 +119,8 @@ def attach_decision(root, keys=('producer',)):
 def change_decision(root, index, constraints):
     index['records'][0]['constraints'] = constraints
     (root / 'decisions.index.json').write_text(json.dumps(index))
+
+
+def single_kind(kind):
+    """Contract fields for a single-verifier fresh record of this kind."""
+    return {'kind': kind, 'perspectives': ['goal']} if kind == 'whole-run' else {'kind': kind}
