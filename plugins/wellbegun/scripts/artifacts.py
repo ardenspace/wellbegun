@@ -399,6 +399,33 @@ def changed_foundations(root, state, records):
 
 
 NOTES_CAP = 50
+FORWARD_FILES = ('deferred.md', 'rule-candidates.md')
+
+
+def forward_lines(root):
+    """Lines forwarded to a later record with `→ <record ID>`; the last arrow wins."""
+    items = []
+    for name in FORWARD_FILES:
+        path = root / name
+        if not path.is_file():
+            continue
+        for raw in path.read_text(encoding='utf-8').splitlines():
+            targets = re.findall(r'→\s*([\w.-]+)', raw)
+            if targets:
+                line = raw.strip()
+                to = targets[-1]
+                items.append({'file': name, 'line': line, 'to': to, 'done': ('✓ ' + to) in line})
+    return items
+
+
+def rechecks(root, state):
+    items = []
+    for key, rec in state['records'].items():
+        if rec['current_result']:
+            reason = load_evidence(root, rec['current_result']).get('recheck_reason')
+            if reason:
+                items.append({'record': key, 'reason': reason})
+    return items
 
 
 def packet_notes(root, records, state, key):
@@ -407,6 +434,11 @@ def packet_notes(root, records, state, key):
     notes = {}
     if contract['grade'] == 'fresh' and current['status'] != 'verified':
         notes['review_items'] = changed_foundations(root, state, records)
+    forwards = forward_lines(root)
+    notes['forwarded'] = [item for item in forwards if item['to'] == key]
+    if contract['kind'] == 'whole-run':
+        notes['open_forwards'] = [item for item in forwards if not item['done']]
+        notes['rechecks'] = rechecks(root, state)
     for name in list(notes):
         if len(notes[name]) > NOTES_CAP:
             notes[name + '_more'] = len(notes[name]) - NOTES_CAP

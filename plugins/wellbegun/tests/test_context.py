@@ -355,5 +355,32 @@ class LeanNotesTests(unittest.TestCase):
         self.assertFalse(any(r['section'] == 'notes' for r in packet['receipts']))
 
 
+    def test_forwarded_lines_reach_target_packet(self):
+        (self.root / 'deferred.md').write_text('- step-1: refund policy undecided → consumer\n- step-1: other → gate ✓ gate\n')
+        notes = runtime.context(self.root, 'consumer', context_id='c')['notes']
+        self.assertEqual([{'file': 'deferred.md', 'line': '- step-1: refund policy undecided → consumer', 'to': 'consumer', 'done': False}], notes['forwarded'])
+        gate = runtime.context(self.root, 'gate', context_id='v', audience='verifier')['notes']['forwarded']
+        self.assertEqual([True], [item['done'] for item in gate])
+
+    def test_rule_candidate_forward_reaches_target(self):
+        (self.root / 'rule-candidates.md').write_text('- step-3.1/OC-1: idle sockets hold seats → gate\n')
+        notes = runtime.context(self.root, 'gate', context_id='v', audience='verifier')['notes']
+        self.assertEqual(['rule-candidates.md'], [item['file'] for item in notes['forwarded']])
+
+    def test_appending_forward_line_does_not_block_inflight_record(self):
+        start(self.root)
+        with (self.root / 'deferred.md').open('a') as file:
+            file.write('- x: y → producer\n')
+        tx(self.root, {**success_payload(), 'op': 'complete-basic'})
+        self.assertEqual('verified', state(self.root)['records']['producer']['status'])
+
+    def test_whole_run_lists_open_forwards(self):
+        (self.root / 'deferred.md').write_text('- a: open item → consumer\n- b: done item → gate ✓ gate\n')
+        notes = runtime.context(self.root, 'whole-run', context_id='final')['notes']
+        self.assertEqual(['- a: open item → consumer'], [item['line'] for item in notes['open_forwards']])
+        self.assertEqual([], notes['rechecks'])
+        self.assertNotIn('open_forwards', runtime.context(self.root, 'consumer', context_id='c')['notes'])
+
+
 if __name__ == '__main__':
     unittest.main()
