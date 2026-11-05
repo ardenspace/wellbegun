@@ -386,6 +386,34 @@ def drifted(root, state, records=None, only=None):
     return sorted(set(changed))
 
 
+def changed_foundations(root, state, records):
+    """Verified fresh records whose target files changed after verification.
+
+    These are not invalidated; the next fresh review point checks them."""
+    items = []
+    for key, rec in state['records'].items():
+        if key in records and rec['status'] == 'verified' and records[key]['grade'] == 'fresh' and rec['target'] and not valid_snapshot(root, rec['target']):
+            files = sorted(p for p, h in rec['target'].items() if file_digest(inside(root.parent, p)) != h)
+            items.append({'record': key, 'files': files})
+    return items
+
+
+NOTES_CAP = 50
+
+
+def packet_notes(root, records, state, key):
+    """Informational packet facts. Never part of receipts, reads or drift."""
+    contract, current = records[key], state['records'][key]
+    notes = {}
+    if contract['grade'] == 'fresh' and current['status'] != 'verified':
+        notes['review_items'] = changed_foundations(root, state, records)
+    for name in list(notes):
+        if len(notes[name]) > NOTES_CAP:
+            notes[name + '_more'] = len(notes[name]) - NOTES_CAP
+            notes[name] = notes[name][:NOTES_CAP]
+    return notes
+
+
 def depends_on(records, consumer, producer):
     return any(dep == producer or depends_on(records, dep, producer) for dep in records[consumer]['requires'])
 
@@ -528,7 +556,8 @@ def context(root, record=None, section=None, context_id=None, audience='implemen
     if section and section.startswith('sections@'):
         return {'status': 'overflow', 'record': key, 'context_id': cid, 'audience': audience, 'revision': state['revision'], **selector_page(list(parts), section)}
     need(section is None or section in parts, 'unknown_section', 'Unknown section', sections=list(parts))
-    base = {'status': 'ok', 'record': key, 'context_id': cid, 'audience': audience, 'revision': state['revision'], 'reused_sections': {} if section else reused}
+    base = {'status': 'ok', 'record': key, 'context_id': cid, 'audience': audience, 'revision': state['revision'], 'reused_sections': {} if section else reused,
+            'notes': packet_notes(root, records, state, key)}
     if section:
         base.update(section=section, content=parts[section], receipts=[receipt(state, key, cid, audience, section, parts[section])])
     else:

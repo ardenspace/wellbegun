@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from test_support import add_decision, create_project, read_all, runtime, start, state, success_payload, tx, write_plan
+from test_support import add_decision, checking, create_project, read_all, record_success, runtime, start, state, success_payload, tx, write_plan
 
 
 class ContextTests(unittest.TestCase):
@@ -325,6 +325,34 @@ class ContextTests(unittest.TestCase):
         write_plan(root, [base, base]); self.raises('invalid_plan', runtime.plan, root)
         broken = copy.deepcopy(base); broken['requires'] = ['missing']
         write_plan(root, [broken]); self.raises('invalid_plan', runtime.plan, root)
+
+
+
+class LeanNotesTests(unittest.TestCase):
+    """Informational packet notes: review items, forwarded lines, rechecks."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = create_project(self.temp.name, whole_run=True)
+
+    def verify_foundation(self):
+        start(self.root); checking(self.root); record_success(self.root)
+        start(self.root, 'gate', 'independent', 'verifier'); record_success(self.root, 'gate', 'independent', True)
+
+    def test_fresh_packet_lists_changed_verified_foundation(self):
+        self.verify_foundation()
+        (self.root.parent / 'src.py').write_text('value = 2\n')
+        packet = runtime.context(self.root, 'whole-run', context_id='final')
+        self.assertEqual([{'record': 'gate', 'files': ['src.py']}], packet['notes']['review_items'])
+        self.assertNotIn('review_items', runtime.context(self.root, 'consumer', context_id='c')['notes'])
+
+    def test_notes_carry_no_receipts(self):
+        self.verify_foundation()
+        (self.root.parent / 'src.py').write_text('value = 2\n')
+        packet = runtime.context(self.root, 'whole-run', context_id='final')
+        self.assertNotIn('notes', packet['sections'])
+        self.assertFalse(any(r['section'] == 'notes' for r in packet['receipts']))
 
 
 if __name__ == '__main__':

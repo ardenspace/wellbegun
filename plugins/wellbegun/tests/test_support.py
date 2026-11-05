@@ -10,7 +10,16 @@ runtime = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runtime)
 
 
-def create_project(directory, basic_only=False, round_limits=None):
+def whole_run_contract(perspectives=None):
+    rec = {'id': 'whole-run', 'kind': 'whole-run', 'scope_id': 'scope-whole-run', 'goal': 'Whole run meets begin.md',
+           'completion': [{'id': 'works', 'text': 'Observable contract holds.'}], 'verification': ['python3 check.py'],
+           'decisions': [], 'registry': [], 'discretion': 'None', 'requires': ['consumer'], 'grade': 'fresh'}
+    if perspectives is not None:
+        rec['perspectives'] = perspectives
+    return rec
+
+
+def create_project(directory, basic_only=False, round_limits=None, whole_run=False):
     root = Path(directory).resolve() / '.wellbegun'
     root.mkdir(parents=True)
     for file in (PLUGIN / 'tests/fixtures').iterdir():
@@ -25,6 +34,9 @@ def create_project(directory, basic_only=False, round_limits=None):
         for key, limit in round_limits.items():
             records[key]['round_limit'] = limit
         write_plan(root, list(records.values()))
+    if whole_run:
+        records, _ = runtime.plan(root)
+        write_plan(root, [*records.values(), whole_run if isinstance(whole_run, dict) else whole_run_contract()])
     runtime.transition(root, 0, json.loads((root / 'init.json').read_text()))
     return root
 
