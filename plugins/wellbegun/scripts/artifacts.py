@@ -443,27 +443,43 @@ def changed_foundations(root, state, records):
 
     These are not invalidated; the next fresh review point checks them."""
     items = []
-    for key, rec in state['records'].items():
-        if key in records and rec['status'] == 'verified' and records[key]['grade'] == 'fresh' and rec['target'] and not valid_snapshot(root, rec['target']):
-            files = sorted(p for p, h in rec['target'].items() if file_digest(inside(root.parent, p)) != h)
-            items.append({'record': key, 'files': files})
+    for key in records:
+        rec = state['records'].get(key)
+        if rec and rec['status'] == 'verified' and records[key]['grade'] == 'fresh' and rec['target']:
+            base = reviewed_baseline(rec)
+            if not valid_snapshot(root, base):
+                files = sorted(p for p, h in base.items() if file_digest(inside(root.parent, p)) != h)
+                items.append({'record': key, 'files': files})
     return items
 
 
+def reviewed_baseline(rec):
+    """File state a later fresh review last accepted; the accepted target otherwise."""
+    reviewed = rec.get('reviewed_target')
+    if isinstance(reviewed, dict) and reviewed.get('for') == digest(rec['target']):
+        return reviewed['snapshot']
+    return rec['target']
+
+
 NOTES_CAP = 50
-NOTES_BUDGET = 3000
+NOTES_BUDGET = 6000
+# Trimmed first to last; forwards are the deliveries this design must not lose.
+NOTES_TRIM_ORDER = ('review_items', 'screenshot_reviews', 'rechecks', 'open_forwards', 'forwarded')
+FORWARD_HINT = 'Truncated: read every line ending in → <record ID> in .wellbegun/deferred.md and rule-candidates.md directly.'
 FORWARD_FILES = ('deferred.md', 'rule-candidates.md')
 
 
-def forward_lines(root):
-    """Lines forwarded to a later record with `→ <record ID>`; the last arrow wins."""
+def forward_lines(root, ids):
+    """Lines forwarded to a plan record with `→ <record ID>`; the last such arrow wins.
+
+    Arrows in prose (`src→worker`, `KRW → 10`) name no record and are ignored."""
     items = []
     for name in FORWARD_FILES:
         path = root / name
         if not path.is_file():
             continue
         for raw in path.read_text(encoding='utf-8').splitlines():
-            targets = re.findall(r'→\s*([A-Za-z0-9_.-]*[A-Za-z0-9_])', raw)
+            targets = [t for t in re.findall(r'→\s*([A-Za-z0-9_.-]*[A-Za-z0-9_])', raw) if t in ids]
             if targets:
                 line = raw.strip()
                 to = targets[-1]
@@ -488,7 +504,7 @@ def packet_notes(root, records, state, key):
     notes = {}
     if contract['grade'] == 'fresh' and current['status'] != 'verified':
         notes['review_items'] = changed_foundations(root, state, records)
-    forwards = forward_lines(root)
+    forwards = forward_lines(root, set(records))
     notes['forwarded'] = [item for item in forwards if item['to'] == key]
     if contract['kind'] == 'whole-run':
         # Lines already in `forwarded` are not repeated.
@@ -499,11 +515,15 @@ def packet_notes(root, records, state, key):
         if len(notes[name]) > NOTES_CAP:
             notes[name + '_more'] = len(notes[name]) - NOTES_CAP
             notes[name] = notes[name][:NOTES_CAP]
-    # Notes must never push a packet past LIMIT: trim the longest list first.
-    while len(encoded(notes)) > NOTES_BUDGET:
-        name = max((n for n, v in notes.items() if isinstance(v, list) and v), key=lambda n: len(encoded(notes[n])))
-        notes[name].pop()
-        notes[name + '_more'] = notes.get(name + '_more', 0) + 1
+            if name in {'forwarded', 'open_forwards'}:
+                notes[name + '_hint'] = FORWARD_HINT
+    # Notes must never push a packet past LIMIT; forwards are trimmed last.
+    for name in NOTES_TRIM_ORDER:
+        while len(encoded(notes)) > NOTES_BUDGET and notes.get(name):
+            notes[name].pop()
+            notes[name + '_more'] = notes.get(name + '_more', 0) + 1
+            if name in {'forwarded', 'open_forwards'}:
+                notes[name + '_hint'] = FORWARD_HINT
     return notes
 
 
@@ -660,8 +680,10 @@ def context(root, record=None, section=None, context_id=None, audience='implemen
     if section and section.startswith('sections@'):
         return {'status': 'overflow', 'record': key, 'context_id': cid, 'audience': audience, 'revision': state['revision'], **selector_page(list(parts), section)}
     need(section is None or section in parts, 'unknown_section', 'Unknown section', sections=list(parts))
-    base = {'status': 'ok', 'record': key, 'context_id': cid, 'audience': audience, 'revision': state['revision'], 'reused_sections': {} if section else reused,
-            'notes': packet_notes(root, records, state, key)}
+    base = {'status': 'ok', 'record': key, 'context_id': cid, 'audience': audience, 'revision': state['revision'], 'reused_sections': {} if section else reused}
+    if not section:
+        # Notes travel with the full packet (or its overflow routing), not with section pages.
+        base['notes'] = packet_notes(root, records, state, key)
     if section:
         base.update(section=section, content=parts[section], receipts=[receipt(state, key, cid, audience, section, parts[section])])
     else:
@@ -1133,6 +1155,12 @@ def apply_status(root, records, state, payload):
                 need(fid in state['findings'] and state['findings'][fid]['scope_id'] == contract['scope_id'], 'invalid_input', 'Unknown finding resolution')
                 state['findings'][fid]['status'] = 'resolved'
             need(not any(f['scope_id'] == contract['scope_id'] and f['status'] == 'unresolved' for f in state['findings'].values()), 'unresolved', 'Unresolved contract violations cannot be verified')
+            if contract['grade'] == 'fresh' and not rechecking:
+                # An independent ACCEPT here covered the foundation changes it was shown.
+                for item in changed_foundations(root, state, records):
+                    other = state['records'][item['record']]
+                    if item['record'] != key:
+                        other['reviewed_target'] = {'for': digest(other['target']), 'snapshot': snapshot(root, list(other['target']))}
         else:
             if not many:
                 need(isinstance(payload.get('findings'), list) and payload['findings'], 'invalid_input', 'REJECT needs stable finding and reproduction')

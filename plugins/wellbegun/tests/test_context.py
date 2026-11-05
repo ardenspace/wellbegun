@@ -390,9 +390,45 @@ class LeanNotesTests(unittest.TestCase):
         notes = packet['notes']
         self.assertLessEqual(len(runtime.encoded(notes)), runtime.NOTES_BUDGET)
         self.assertEqual(80, len(notes['forwarded']) + notes.get('forwarded_more', 0))
+        self.assertIn('deferred.md', notes['forwarded_hint'])
         self.assertEqual([], notes['open_forwards'])
         section = runtime.context(self.root, 'whole-run', 'contract', 'final')
         self.assertEqual('ok', section['status'])
+        self.assertNotIn('notes', section)
+
+    def test_prose_arrows_are_not_forwards(self):
+        (self.root / 'deferred.md').write_text(
+            '- phase-1: src→worker import ban matches path text `(^|/)worker(/|$)`; a future path alias\n'
+            '- step-4.2: PC path (SDK promise resolves → complete) is code-only; e2e covers the mobile\n'
+            '- step-4.2: packs 1,000/3,000/5,000 KRW → 10/30/50 coins are provisional\n'
+            '- step-4.3 recheck: "act idle ⇒ identical pose" sets act→null in code only\n'
+            '- step-1: refund policy undecided (A → B later) → consumer\n')
+        notes = runtime.context(self.root, 'whole-run', context_id='final')['notes']
+        self.assertEqual(['consumer'], [item['to'] for item in notes['open_forwards']])
+
+    def test_forwarded_survives_when_other_notes_are_long(self):
+        filler = '환불·좌석·재접속 관련 지적을 다음 검토 지점에서 다시 확인해야 함 ' * 3
+        lines = ''.join('- step-%d: %s → whole-run\n' % (i, filler) for i in range(12))
+        lines += ''.join('- other-%d: %s → consumer\n' % (i, filler) for i in range(30))
+        (self.root / 'deferred.md').write_text(lines)
+        notes = runtime.context(self.root, 'whole-run', context_id='final')['notes']
+        self.assertEqual(12, len(notes['forwarded']))
+        self.assertNotIn('forwarded_more', notes)
+        self.assertGreater(notes['open_forwards_more'], 0)
+        self.assertIn('deferred.md', notes['open_forwards_hint'])
+
+    def test_reviewed_foundation_leaves_later_review_items(self):
+        records, _ = runtime.plan(self.root)
+        records['consumer'].update(kind='phase', grade='fresh')
+        write_plan(self.root, list(records.values()))
+        tx(self.root, {'op': 'reconcile', 'reason': 'fresh phase fixture'})
+        self.verify_foundation()
+        (self.root.parent / 'src.py').write_text('value = 2\n')
+        self.assertEqual(['gate'], [i['record'] for i in runtime.context(self.root, 'consumer', context_id='v2', audience='verifier')['notes']['review_items']])
+        start(self.root, 'consumer', 'v2', 'verifier'); record_success(self.root, 'consumer', 'v2', True)
+        self.assertEqual([], runtime.context(self.root, 'whole-run', context_id='final')['notes']['review_items'])
+        (self.root.parent / 'src.py').write_text('value = 3\n')
+        self.assertEqual(['gate', 'consumer'], [i['record'] for i in runtime.context(self.root, 'whole-run', context_id='final')['notes']['review_items']])
 
     def test_forward_targets_ignore_sentence_period_and_prefix_ids(self):
         (self.root / 'deferred.md').write_text('- a: refund later → consumer.\n- b: other → gate ✓ gate-2\n')

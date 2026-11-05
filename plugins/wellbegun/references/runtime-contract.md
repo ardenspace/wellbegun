@@ -116,19 +116,25 @@ contract, decision, registry, and detail section, and a state read. A new contex
 cannot use an old context's receipts. Receipts are acknowledgments by a trusted
 caller, not proof of human cognition; never submit fabricated reads.
 
-Every `ok` packet also carries `notes`, an informational object outside sections,
+Every full `ok` packet (and its overflow routing response, but not an explicit
+section fetch) also carries `notes`, an informational object outside sections,
 receipts and drift: reading it is not acknowledged, and changing it never blocks
 an in-flight record. `notes.forwarded` lists lines in `.wellbegun/deferred.md`
-and `rule-candidates.md` whose last `→ <record ID>` names this record, each
+and `rule-candidates.md` whose last `→ <ID>` naming a plan record names this
+record (arrows in prose, such as `src→worker`, are ignored), each
 `{file,line,to,done}`; `done` means the line contains `✓ <record ID>`.
 A fresh record that is not yet verified also gets `notes.review_items`:
 `[{record,files}]` for verified fresh records whose target files changed after
-their acceptance. A whole-run packet adds `notes.open_forwards` (every other
+their acceptance, or since a later fresh record last accepted them with a
+verifier (a checks-only recheck does not count). A whole-run packet adds `notes.open_forwards` (every other
 forward line without its `✓`), `notes.rechecks` (`[{record,reason}]` for current
 results accepted by a checks-only recheck) and `notes.screenshot_reviews`
 (`[{record,command,files}]` for phase checks whose command starts with
-`screenshot review:`). Lists hold at most 50 items and all notes at most 3000
-bytes; a truncated list adds `<name>_more` with the dropped count. A target
+`screenshot review:`). Lists hold at most 50 items and all notes at most 6000
+bytes, trimmed in the order `review_items`, `screenshot_reviews`, `rechecks`,
+`open_forwards`, `forwarded`. A truncated list adds `<name>_more` with the
+dropped count; a truncated forward list also adds `<name>_hint`, telling the
+reader to read the `→` lines in both files directly. A target
 ID is ASCII letters, digits, `_.-` and ends with a letter, digit or `_`, so a
 sentence period after it is ignored.
 

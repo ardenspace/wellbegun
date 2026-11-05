@@ -123,7 +123,7 @@ If contracts are missing or contradictory, constraints surprise you, the same ca
 
 ## Propagation gates
 
-Gates are the plan's fresh points for new shared foundations and for the first money/auth connection. A gate names its producers and the consumers blocked until it passes; independently verify the shared contract or data flow before the first consumer, even if its producer is S/M.
+Gates are the plan's fresh points for new shared foundations and for the first money/auth connection. A gate names its producers and the consumers blocked until it passes; independently verify the shared contract or data flow before the first consumer, even if its producer is S/M. Start a gate with `target` listing the shared contract files its producers built (protocol, schema, shared server modules): the helper watches exactly those files for `notes.review_items`, and an empty or unrelated target silently disables that warning.
 
 On failure, fix the producer before consumers proceed. A later change to a verified gate's files is not invalidation: the changing record's checks cover it, and the next fresh point receives it through `notes.review_items`. Only a change to the gate's contract or selected decisions/registry reopens it. Record newly discovered dependencies and gates in the plan under existing authority unless they change an expensive decision or authorized scope.
 
