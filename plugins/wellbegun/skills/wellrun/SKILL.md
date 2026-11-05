@@ -70,9 +70,21 @@ write, receipt copying or verifier is required. Each check records its actual
 
 Fresh step completion uses checking with the independent `verifier_context_id`,
 then verified with successful checks/reuse and the actual verifier ACCEPT.
-Gate/phase/whole-run start directly in checking, with the independent context as
+Gates and fresh phases start directly in checking, with the independent context as
 both `context_id` and `verifier_context_id`, after its verifier packet reads.
-Do not manufacture independent verdicts when the host cannot provide them.
+A basic phase starts in checking with the implementer's context and completes
+with checks only. Whole-run runs one verifier per perspective in parallel: enter
+checking with `verifier_context_ids:{perspective:ID}` and complete with
+`verdicts:{perspective:{status,independent,context_id}}`. After a contract change,
+a previously accepted fresh record rechecks with `recheck_reason` and checks only,
+unless contract-visible behavior changed; then run a verifier round. Read “State
+writes” in the runtime contract for these payloads. Do not manufacture
+independent verdicts when the host cannot provide them.
+
+Every packet carries `notes`: `forwarded` lines meant for this record,
+`review_items` (verified foundations whose files changed since acceptance) for a
+fresh point, and at whole-run `open_forwards` and `rechecks`. Give them to the
+implementer or verifier with the packet; they are required reading, not receipts.
 
 Transitions generate run.md. Use `render` only to recover missing derived output;
 `render --handoff` optionally requests a persistent HANDOFF and returns a new
@@ -82,10 +94,11 @@ At interruption or decision wait use `op:set,status:stopped,record,reason` and
 the concrete `next_action`; a checkpoint may refresh expected edited `target`
 paths before a stop. On resume, bootstrap the current packet and explicitly set
 the saved `resume_status` with the actual context identity. For detected drift,
-use `op:reconcile,reason`, restore prerequisites through required checking and
-fresh gates, then resume the preserved consumer action. Same-file additions
-require current checks; do not repeat completed implementation merely because a
-hash changed. Pending and unresolved caps remain blockers. Read only “Checkpoint,
+use `op:reconcile,reason`, restore any reopened prerequisites, then resume the
+preserved consumer action. Code edits never reopen verified records; only
+contract or selected decision/registry changes do. The record that edits a file
+runs current checks over it; do not repeat completed implementation merely
+because a hash changed. Pending and unresolved caps remain blockers. Read only “Checkpoint,
 drift, and recovery” for an unfamiliar recovery case.
 
 Schema 2 questions are `pending/<slug>.json` with a `question` body containing
@@ -104,27 +117,31 @@ Technique skills may support implementation. Do not restart another planning pip
 
 Before changing an area, read its relevant active registry entries and current constraints. Reuse established public contracts. Materialize elements explicitly planned as shared from their first use; otherwise keep the first use local and assess promotion at the second actual use. Similar appearance alone does not justify abstraction. Update relevant registry entries with shared changes; N/A areas need no registry.
 
-Grade the decision being introduced or changed, not an existing L/XL API merely being used. Consult `<plugin-root>/references/reversibility-grades.md`: S needs no permanent ADR; record M only when future work needs the choice. New L/XL decisions go to the conductor/current session for authority and contract review. Companion pauses affected work with a pending question; authorized autonomous work records a provisional choice. Resume with the resolved contract and a new implementer, and use fresh verification for the L/XL change.
+Grade the decision being introduced or changed, not an existing L/XL API merely being used. Consult `<plugin-root>/references/reversibility-grades.md`: S needs no permanent ADR; record M only when future work needs the choice. New L/XL decisions go to the conductor/current session for authority and contract review. Companion pauses affected work with a pending question; authorized autonomous work records a provisional choice. Resume with the resolved contract and a new implementer. Do not add a fresh verification for it: add `- <record ID>: new L/XL decision <key> — review → <next fresh record ID>` to `.wellbegun/deferred.md`, so the next planned fresh point (or whole-run) reviews it.
 
 If contracts are missing or contradictory, constraints surprise you, the same cause fails repeatedly, or scope grows, pause dependent work and revisit assumptions. Add a gate when needed. Replacing the implementer is not verification.
 
 ## Propagation gates
 
-A gate names its producer and the consumers blocked until it passes. Independently verify a new shared contract or data flow before the first consumer, even if its producer is S/M. An L/XL producer's fresh verification, or phase integration before the first consumer testing the same conditions, can satisfy the gate without another review.
+Gates are the plan's fresh points for new shared foundations and for the first money/auth connection. A gate names its producers and the consumers blocked until it passes; independently verify the shared contract or data flow before the first consumer, even if its producer is S/M.
 
-On failure, fix the producer before consumers proceed. A change to the foundation contract or verified behavior invalidates the gate; assess affected consumers and rerun necessary verification. Record newly discovered dependencies and gates in the plan under existing authority unless they change an expensive decision or authorized scope.
+On failure, fix the producer before consumers proceed. A later change to a verified gate's files is not invalidation: the changing record's checks cover it, and the next fresh point receives it through `notes.review_items`. Only a change to the gate's contract or selected decisions/registry reopens it. Record newly discovered dependencies and gates in the plan under existing authority unless they change an expensive decision or authorized scope.
 
 ## Verification and completion
 
 - **Basic:** complete after the spec's check command and the step's contract checks pass. Warnings do not block. A legacy cycle or a spec without a check contract keeps the previous rule: contract checks plus affected lint/analyze or other relevant checks. No separate verifier or verifier ACCEPT is required.
 - **Fresh:** use a new independent context. Give it the contract, target code/diff, execution commands, relevant registry entries and active decisions. Valid command-result facts may be supplied; exclude implementer self-assessment, full evidence narratives and previous verifier judgments. The verifier explores code and may make probes, but does not modify target implementation or existing tests. Prefer strong reasoning capability if the host offers model selection; no named model is required. Include the check contract and the latest check-command result (command, exit status, input identity). The verifier does not re-examine conventions classified `lint` or `test`; it focuses on contract interpretation and gaps, `review` entries, completion clauses without tests, and new L/XL choices.
-- **Goal check.** Also give the verifier `.wellbegun/begin.md` and ask whether the contract, an active decision or the implementation breaks a promise there (a journey, failure branch or success criterion). Matching a decision's wording is not enough: a decision can be followed exactly and still defeat the goal it serves. Such a conflict is a defect in the current contract; the conductor handles it as a newly discovered decision.
-- **Abuse and robustness.** Where the target holds shared resources, takes untrusted input or keeps connections, the verifier also probes: an anonymous or unauthenticated client holding a resource (idle connections, repeated assignment calls, filling seats through a link), message floods without rate limits, dropped connections and reconnects. A reproduced failure of a contract clause is REJECT; otherwise it is an outside-contract finding.
-- **Lost coverage.** When a change replaces a real path with a mock or stub, or skips, deletes or narrows a test (for example, to stop a flaky failure), add one line to `.wellbegun/deferred.md`: `- <record ID>: coverage loss — <what is no longer checked automatically>`. The next fresh verifier receives these lines and judges whether a contract clause is now unverified; if so, that is REJECT.
+- **Perspectives.** Every fresh verifier also reads `.wellbegun/begin.md`, the packet `notes`, and covers the contract's `perspectives` (whole-run without the field: all three). At a gate one verifier covers all listed perspectives; at whole-run one verifier per perspective runs in parallel. Finding IDs start with the perspective (`goal-`, `abuse-`, `money-`) and keep that ID across rounds. Reverification reruns only perspectives that rejected, plus any whose contract-visible behavior the fix changed (`rerun_perspectives`); the others rerun checks only.
+  - `goal`: does the contract, an active decision or the implementation break a `begin.md` promise (a journey, failure branch or success criterion)? Matching a decision's wording is not enough: a decision can be followed exactly and still defeat the goal it serves.
+  - `abuse`: where the target holds shared resources, takes untrusted input or keeps connections, probe an anonymous or unauthenticated client holding a resource (idle connections, repeated assignment calls, filling seats through a link), message floods without rate limits, dropped connections and reconnects.
+  - `money`: payments, refunds, balances and entitlements: double charge, missing refund, rounding, replay and authorization on every money path.
+  - A reproduced failure of a contract clause is REJECT; anything else is an outside-contract finding, classified below.
+- **Classification.** An outside-contract finding that touches abuse, money or a `begin.md` promise is never only deferred. The verifier proposes a fix. If the fix is within the current contract scope and S/M, the conductor fixes it now without stopping and adds `- <record ID>: fixed now — <finding ID>: <fix> → <next fresh record ID, else the whole-run record ID>` to `.wellbegun/deferred.md`, so the next fresh point checks the fix. Ask the user only when the fix changes a `begin.md` promise or needs an L/XL choice; collect those into one pending question at the end of the review (autonomous: a provisional choice). At whole-run, a fixed-now finding sends its perspective back with `recheck_perspectives` on the fixing write; that rerun counts as a round. Other outside-contract findings follow Deferred findings below.
+- **Lost coverage.** When a change replaces a real path with a mock or stub, or skips, deletes or narrows a test (for example, to stop a flaky failure), add one line to `.wellbegun/deferred.md`: `- <record ID>: coverage loss — <what is no longer checked automatically>`. On a money, auth or shared-protocol path, end the line with `→ <next fresh record ID>`. The next fresh verifier judges whether a contract clause is now unverified; if so, that is REJECT.
 - Without subagents, basic still runs. At a fresh boundary, prepare the same packet for a separate independent session and wait. Same-context self-review is not fresh. Git, hooks and context-usage APIs are not prerequisites for basic execution.
 - REJECT must identify a violated contract clause and reproduction evidence. Report outside-contract suggestions separately; they do not block completion unless they expose a new L/XL choice or a defect in the current contract. Give the fixer failed clauses and reproduction facts. Reverification uses a new independent context. A rule gap is REJECT grounds only when the verifier reproduces an actual violation present in the current code; the fixer then fixes the code. A theoretical bypass is an outside-contract finding. Gaps in text-pattern hooks are never REJECT grounds.
 - **Rule candidates.** When a finding's defect kind could be mechanized as lint or test, fix the code and add one line to `.wellbegun/rule-candidates.md`: `- <finding ID>: <defect kind> — lint | test via <means>`. Do not build new rules during the cycle; wellnext promotes candidates into the next cycle's check contract. This file is not derived state; schema 2 `run.md` stays helper-written.
-- **Deferred findings.** Add each outside-contract finding that is neither fixed nor dismissed as one line in `.wellbegun/deferred.md`: `- <record ID>: <finding> — <why deferred>`. A finding also listed in `rule-candidates.md` needs no second line. This file is not derived state; legacy cycles may keep using `run.md`'s `## Deferred`.
+- **Deferred findings.** Add each outside-contract finding that is neither fixed nor dismissed as one line in `.wellbegun/deferred.md`: `- <record ID>: <finding> — <why deferred>`. A finding meant for a later record ends with `→ <record ID>` (in either file); the helper puts it in that record's `notes.forwarded`. The receiving implementer appends `✓ <record ID>` when handled, or forwards it again with a new `→`. Whole-run reports every open forward. A finding also listed in `rule-candidates.md` needs no second line. This file is not derived state; legacy cycles may keep using `run.md`'s `## Deferred`.
 - The observable Goal and acceptance criteria determine completion. A diff limited to tests, hooks, documentation or comments is not evidence that the deliverable is complete.
 
 ### Rounds and unresolved findings
@@ -139,15 +156,15 @@ Run each successful check once for the same valid inputs. Assign one execution o
 
 Record target commit or content identity (HEAD alone is insufficient for dirty code), scope, command, exit status, relevant environment/dependency identities and external-state dependence. Changed source, tests, configuration, dependencies or environment invalidate affected results. Uncertain external state is not reusable. Documentation-only SHA changes do not invalidate unchanged test inputs. A verifier may rerun a result it has reason to distrust; record the reason briefly.
 
-A passing exit code does not prove the expected tests ran. Record the number of tests or suites each check ran; when it drops below the previous valid result without a recorded removal, treat the check as failed (a configuration change can silently drop a whole project, such as a mobile e2e target).
+A passing exit code does not prove the expected tests ran. For every check, including basic steps and phases, record the number of tests or suites it ran; when it drops below the previous valid result without a recorded removal, treat the check as failed (a configuration change can silently drop a whole project, such as a mobile e2e target).
 
 For a completion clause that guards money, authorization or a shared protocol and is covered only by tests, a fresh verifier may temporarily break the guarding code and confirm that a test fails, then restore it. A guard whose removal fails no test is a coverage gap, not a pass.
 
-UI rendering and observable states are valid acceptance checks. At phase integration and whole-run review, capture screenshots of key states and look at them for anything wrong: layout, missing elements, wrong data. Passing tests miss visual defects. Do not invent a test framework just to turn every visual criterion into an exit code; use goldens only for a stable environment and clear purpose.
+UI rendering and observable states are valid acceptance checks. At phase integration the implementer, and at whole-run the verifiers, capture screenshots of key states and look at them for anything wrong: layout, missing elements, wrong data. Passing tests miss visual defects. Do not invent a test framework just to turn every visual criterion into an exit code; use goldens only for a stable environment and clear purpose.
 
 Use temporary reproductions first. Keep permanent probes only for new regression value, preferably integrated by the implementer into existing tests. Rerun changed tests after integration. Zero to two new permanent probes per round is a target, not a quota or cap; clean up relevant probes at phase end.
 
-Phase integration uses a fresh context to verify the phase's composition and necessary regression, including key rendered states for UI. Its contract states what must compose. Fix owned failures under the relevant contract; do not reset finding rounds. Whole-run fresh review checks all release criteria, reusing valid results and running only missing or invalidated checks. Every required step, gate and review must pass before completion.
+Phase integration is basic: the implementer runs e2e and the necessary regression and reviews screenshots of key states. Record the review as a check whose `files` are the screenshot paths and whose `command` is `screenshot review: <one-line note of anything odd>`; whole-run reads these. Its contract states what must compose. Fix owned failures under the relevant contract; do not reset finding rounds. Whole-run fresh review checks all release criteria, reusing valid results and running only missing or invalidated checks. Every required step, gate and review must pass before completion.
 
 ## Legacy progress and checkpoint
 
