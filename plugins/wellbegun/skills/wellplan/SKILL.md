@@ -31,7 +31,7 @@ Create a foundation phase only when the spec calls for actual foundation changes
 
 For delta cycles (`cycle: N`, N > 1), carry the cycle into the plan and plan only additions or changes. An expensive foundation change must be covered by the approved spec; surface a genuinely new decision rather than recreating the existing foundation.
 
-Group remaining work into vertical slices with observable outcomes. Mark each new foundation's producer and consumers, and place an independent gate before its first consumer. L/XL producer verification can satisfy that gate. Phase integration can also satisfy it when it precedes the first consumer and covers the same conditions. Independent color or name edits do not need a propagation gate.
+Group remaining work into vertical slices with observable outcomes. Mark each new foundation's producer and consumers, and place an independent gate before its first consumer. Producer steps and phase integration are basic and do not replace the gate. Independent color or name edits do not need a propagation gate.
 
 ## Step sizing and contract
 
@@ -56,14 +56,24 @@ format. Existing in-progress legacy plans keep their original format.
 Replace sample behavior/commands with real completion clauses. Put records in
 execution order; use `requires` for prerequisites and `decisions`/`registry`
 for stable keys, never copied history. Gate records use `kind:gate`, `grade:fresh`,
-and nonempty `producers`/`consumers` arrays; consumers require the gate. Phase and
-whole-run records use `kind:phase|whole-run`, fresh, their actual prerequisites,
-and explicit composition/release clauses. The bundled `tests/fixtures/plan.md`
+and nonempty `producers`/`consumers` arrays; consumers require the gate. Phase
+records use `kind:phase`, basic; whole-run uses `kind:whole-run`, fresh. Both list
+their actual prerequisites and explicit composition/release clauses. Fresh
+records may set `perspectives` (subset of `goal`, `abuse`, `money`). The bundled `tests/fixtures/plan.md`
 is a complete producer/gate/consumer example, not mandatory project scaffolding.
 
-Derive `grade` from the reversal cost of decisions introduced or changed in this step: L/XL → fresh; S/M → basic. Merely using an existing L API is not an L change. An S/M producer at a new propagation boundary still requires an independent gate before consumers. Basic requires the spec's check command (or affected checks when no check contract exists) plus contract checks, without a separate verifier. Check breadth follows impact separately from reversal grade.
+Steps are `basic`. Fresh review sits only at these points:
+- a gate after each new shared foundation (protocol, DB schema, shared server), before its first consumer — even when the producer is S/M. Foundations built in the same phase may share one gate.
+- one gate where money and auth flows first connect; bundle both flows into it.
+- `whole-run`.
 
-Set `round_limit` on fresh step and gate contracts from the spec's check contract; basic, phase and whole-run contracts omit it. Use `2` when the completion clauses are covered by `lint`/`test` entries run by the check command, so fresh verification only judges interpretation and `review` entries; that contract must list the check command in `verification`, so the runtime requires its result. Put the check command in every contract's `verification` when a check contract exists. Omit it (default `3`) otherwise, including steps that build the check contract's own rules and rule tests, and every contract in a cycle without a check contract. Note the reason in one line beside the contract. The runtime accepts only `2` or `3` and fixes a scope's limit when the scope is created; raising it later needs `op:approve-rounds`. Do not edit `round_limit` on an existing contract: it changes nothing but still changes the contract digest and forces re-verification.
+A bundled point is one gate whose `requires`/`producers` list the bundled steps and whose `completion` restates the clauses to verify; REJECT applies only to the gate's own clauses. Foundation gates set `perspectives` including `goal` and `abuse`; the money/auth gate includes `money` and `abuse`; whole-run omits the field to get all three, one verifier each. Gate verifiers also read `begin.md`, so `goal` catches a decision kept but a `begin.md` promise broken.
+
+An L/XL step outside these points gets one line beside its contract, `fresh not needed: <reason>`, shown in Run preview so the user judges it at approval (e.g. a large data migration or external API swap with no protocol, server or money impact). L/XL decisions themselves were already reviewed at wellspec handoff. Basic requires the spec's check command (or affected checks when no check contract exists) plus contract checks, without a separate verifier. Check breadth follows impact separately from reversal grade.
+
+Phase records are `basic`. Their completion includes an e2e run and a screenshot review of key states by the implementer, not a fresh verifier.
+
+Set `round_limit` on fresh gate and whole-run contracts from the spec's check contract; basic steps and phases omit it. Use `2` when the completion clauses are covered by `lint`/`test` entries run by the check command, so fresh verification only judges interpretation and `review` entries; that contract must list the check command in `verification`, so the runtime requires its result. Put the check command in every contract's `verification` when a check contract exists. Omit it (default `3`) otherwise, including steps that build the check contract's own rules and rule tests, and every contract in a cycle without a check contract. Note the reason in one line beside the contract. The runtime accepts only `2` or `3` and fixes a scope's limit when the scope is created; raising it later needs `op:approve-rounds`. Do not edit `round_limit` on an existing contract: it changes nothing but still changes the contract digest and forces re-verification.
 
 Commands must be available from previous work or created by this step, never depend on a later step. Observable UI checks are valid; do not split a coherent step just because a visual condition has no exit code. Specify phase integration and whole-run acceptance conditions too. Reuse valid results across step/gate/phase/final review rather than assigning the same full suite to every reviewer. See `<plugin-root>/references/reversibility-grades.md` for decision and verification policy.
 
@@ -91,9 +101,14 @@ status: draft
 <phase composition and whole-run completion conditions>
 
 ## Run preview
-<!-- steps whose tier is fresh, or that introduce/change L/XL decisions — wellrun shows this at briefing as "where the run may stop" -->
-| step | tier | touches |
+<!-- wellrun shows this at briefing as "where the run may stop" -->
+| point | records bundled | perspectives |
 |---|---|---|
+
+fresh <N> points, about <M> agents, recheck: checks only
+<!-- M = one verifier per gate + one per whole-run perspective -->
+
+<one line per L/XL step outside the points: "<step>: fresh not needed: <reason>">
 ```
 
 ## Handoff
