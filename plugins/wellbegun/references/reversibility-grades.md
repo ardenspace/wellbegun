@@ -6,14 +6,14 @@ Ask: **If the decision introduced or changed here is wrong, what does changing i
 |---|---|---|---|
 | S | Minutes, local | Naming, copy, private helper | Decide and continue; no permanent ADR. |
 | M | Under a day, a few files, no API/data migration | Internal state, config default | Decide and continue. Record only choices future work needs: external behavior, data/public contracts or meaningful cost/performance constraints. |
-| L | A mini-project or coordinated migration | Shared API change, core schema, error contract | Compare alternatives and retain status/rationale. Fresh verification for the change. New unapproved decisions require companion review. |
+| L | A mini-project or coordinated migration | Shared API change, core schema, error contract | Compare alternatives and retain status/rationale. Reviewed at the next planned fresh point. New unapproved decisions require companion review. |
 | XL | Rewrite or user-visible break | Account model, tenancy, pricing, platform, data ownership | Same as L. Product identity belongs in wellbegin. |
 
 Grade proportionately. Reuse approved choices and mode; do not request approval for ordinary work within them. Autonomous provisional choices stay inside granted authority.
 
 ## Verification boundaries
 
-Basic work can complete through the spec's check command (or affected checks without a check contract) and contract checks with the current agent. Reuse implementers inside a verified boundary. A new shared foundation needs an independent gate before its first consumer even when its producer is S/M; an L/XL fresh review or equivalent earlier phase integration may satisfy it. Gate failure blocks consumers; foundation changes invalidate affected gate results.
+Basic work can complete through the spec's check command (or affected checks without a check contract) and contract checks with the current agent. Reuse implementers inside a verified boundary. Fresh review sits at planned points only: a gate after each new shared foundation (protocol, schema, shared server) before its first consumer, even when its producer is S/M; one gate where money and auth flows first connect; and whole-run. An L/XL grade alone no longer makes a step fresh; an L/XL step outside these points carries a one-line reason in the plan. Gate failure blocks consumers. A later change to a verified gate's files does not invalidate it; it becomes a review item for the next fresh point. Only a change to the contract or its selected decisions and registry entries reopens a verified record.
 
 Fresh review uses an independent context without implementer or previous verifier narratives. Valid check facts may be reused. Maximum rounds per verification scope, including the initial review, follow the contract's `round_limit` (default three; two when the check contract covers the step); keep stable finding IDs through renames, SHA changes and contract rewording. Cap exhaustion preserves unresolved status in every mode. Only approved new scope starts a new unit; explicitly excluded findings are not passes. See wellrun for evidence, probe and completion rules.
 

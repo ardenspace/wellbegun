@@ -31,9 +31,12 @@ extractor. File order is execution order. Required fields are `id`, `kind`
 (`step|gate|phase|whole-run`), `scope_id`, `goal`, `completion` (nonempty list of
 `{id,text}`), `verification` (nonempty command strings), `decisions` (keys),
 `registry` (keys), `discretion`, `requires` (predecessor IDs), and `grade`
-(`basic|fresh`). Gate/integration records use fresh. A gate also declares
+(`basic|fresh`). Gate and whole-run records use fresh; a phase may be basic or
+fresh; a step either. A gate also declares
 nonempty `producers` and `consumers`. Optional `round_limit` is `2` or `3`
-(default `3`; see State writes). Dependencies must precede consumers;
+(default `3`; see State writes). Optional `perspectives` is a nonempty unique
+subset of `goal|abuse|money`, only on fresh records. A whole-run without it
+reviews all three; plans without the field stay valid. Dependencies must precede consumers;
 cycles, missing IDs, duplicate IDs/scopes, and transitive gate bypass fail.
 `scope_id` survives renaming and contract edits so rounds cannot reset. Stable IDs,
 keys, context IDs and detail names use 1–120 ASCII letters/digits/`_.-`.
@@ -113,6 +116,18 @@ contract, decision, registry, and detail section, and a state read. A new contex
 cannot use an old context's receipts. Receipts are acknowledgments by a trusted
 caller, not proof of human cognition; never submit fabricated reads.
 
+Every `ok` packet also carries `notes`, an informational object outside sections,
+receipts and drift: reading it is not acknowledged, and changing it never blocks
+an in-flight record. `notes.forwarded` lists lines in `.wellbegun/deferred.md`
+and `rule-candidates.md` whose last `→ <record ID>` names this record, each
+`{file,line,to,done}`; `done` means the line contains `✓ <record ID>`.
+A fresh record that is not yet verified also gets `notes.review_items`:
+`[{record,files}]` for verified fresh records whose target files changed after
+their acceptance. A whole-run packet adds `notes.open_forwards` (every forward
+line without its `✓`) and `notes.rechecks` (`[{record,reason}]` for current
+results accepted by a checks-only recheck). Lists hold at most 50 items; a
+truncated list adds `<name>_more` with the remaining count.
+
 Verifier packets contain contract, target identity, execution location, command
 facts and reproducible unresolved findings. They omit implementer reports,
 canonical evidence bodies, and prior verdict narratives. An independent session
@@ -142,8 +157,9 @@ otherwise first runnable queued record; unresolved stopped records remain blocke
 Only all verified with no unresolved finding permits `complete`.
 
 `op:set` requires record and status. Allowed transitions:
-step queued→implementing→checking→verified; gate/integration queued→checking;
-checking→fixing→checking; active→stopped→saved resume_status.
+step queued→implementing→checking→verified; gate/phase/whole-run queued→checking;
+checking→fixing→checking; active→stopped→saved resume_status. A basic phase
+starts and completes with implementer reads and needs no verifier.
 
 Starting needs `context_id`, `actor` (string/null), `workspace` (absolute project
 root), and `target` (nonempty project-relative file paths, at least one existing).
@@ -163,20 +179,15 @@ The explicit set-checking/set-verified path remains supported. A check requires 
 `environment_known` boolean, `external_state` boolean, and `covers` clause IDs.
 The helper fingerprints files and runtime Python/platform. Required commands and
 all completion clauses must be covered by successful checks. At dispatch, entry
-to checking, and completion, every transitive prerequisite/gate must still have
-valid target and selected-contract fingerprints. Broad check inputs outside the
-foundation target may become stale when an active, stopped, or completed downstream
-consumer owns those changed paths in its declared target. A normal stop preserves
-that ownership through resume; it does not release target drift checks or pending
-dispatch blockers. Such facts are marked
-`reusable:false`; they cannot be reused as current successful command results.
-This does not invalidate an unchanged producer/gate acceptance. Unattributed
-check-input changes still block. Declare the foundation target separately from
-its broad regression input closure; a shared-file foundation target remains
-strictly protected, even if a consumer also declares that file. Consumer target
-drift remains subject to its own checkpoint and completion checks. A verified label
-alone cannot authorize consumption. Known drift rejects the transition before
-state/evidence success is saved; reconcile is the explicit invalidation path.
+to checking, and completion, every transitive prerequisite/gate must be verified
+with current selected-contract fingerprints. A verified record is not reopened by
+later changes to its target files, check inputs or runtime: the record that made
+the change proves it with its own checks, and a verified fresh record whose
+target changed is listed in `notes.review_items` for the next fresh review.
+Its old check facts become `reusable:false`; they cannot be reused as current
+successful command results. A record that is not yet verified still drifts on
+its own target. Known drift rejects the transition before state/evidence success
+is saved; reconcile is the explicit invalidation path.
 A complete cursor is validated against all current record input/evidence identities.
 Command execution
 and declared environment facts are trusted caller reports, not sandbox attestations.
@@ -192,14 +203,38 @@ Gate checking uses the independent verifier as its initial context. Completion
 uses verifier `context_id` and `verdict:{status:"ACCEPT",independent:true,
 context_id:...}`. Without a verifier the record stops; basic needs no verdict.
 
+A whole-run with more than one perspective runs one verifier per perspective in
+one round. Entering checking passes `verifier_context_ids:{perspective:ID}` for
+exactly the perspectives not yet accepted in this scope (all of them at first);
+each ID is new, distinct, independent and has verifier reads. Optional
+`rerun_perspectives:[...]` reopens accepted perspectives, e.g. when a fix changed
+contract-visible behavior they cover. The round counts once. Completion passes
+`verdicts:{perspective:{status:"ACCEPT",independent:true,context_id}}` for every
+verifier of the round; with earlier accepted perspectives they must cover all.
+Failure passes ACCEPT verdicts for perspectives that passed, plus `findings` whose
+IDs start with a rejecting perspective (`goal-`, `abuse-`, `money-`) and/or
+`recheck_perspectives:[...]` for accepted perspectives that must look again after
+a fix made during this review; at least one of the two is required. The next
+round then needs verifiers only for those perspectives. A stopped in-flight round
+resumes with the same verifiers; replacing any starts a new counted round. A
+whole-run round started or accepted with a single verifier before 0.8.0 finishes
+or stays valid on the single path.
+
+After a contract change, a fresh record with an earlier independent ACCEPT and no
+unresolved finding may enter checking from queued or stopped with
+`recheck_reason` (one line: why contract-visible behavior did not change). It
+needs implementer reads and checks only, no verifier or verdict. The result
+stores `recheck_reason`, and the whole-run packet lists it in `notes.rechecks`.
+If contract-visible behavior changed, use a verifier round instead.
+
 Failure sets fixing with `findings:[{id,clause,reproduction}]` and any check facts.
 The same unresolved violation keeps its stable ID. Initial checking counts as
 round 1. At the scope's limit (default 3) failure stays stopped/unresolved. Resolving needs explicit
 `resolved_findings:[IDs]` alongside passing evidence. Extra rounds require
 `op:approve-rounds,scope_id,additional,approval` with the actual user approval.
 The helper cannot itself establish user authorization.
-After a verified scope is invalidated by actual target/check-input or selected-input
-content drift (including drift propagated from a prerequisite),
+After a verified scope is invalidated by selected-input drift (including drift
+propagated from a prerequisite),
 its total round count is retained and its limit is extended by the scope's `allowance` (default 3)
 for the new failure episode. Reconcile during implementing/fixing/stopped never
 refreshes this allowance, and unresolved findings cannot reset it. Plan wording
@@ -247,8 +282,8 @@ mailbox file blocks implementation dispatch, checking and completion, regardless
 of the current record. An unreferenced mailbox file is a pending_mismatch requiring
 comparison with actual answer/decision evidence, not permission to ignore it.
 
-Code/check-input, plan-contract, or effective selected decision/registry drift
-blocks context/dispatch. Each started record and its completion evidence preserve
+Target drift of a record that is not verified, plan-contract drift, or effective
+selected decision/registry drift blocks context/dispatch. Each started record and its completion evidence preserve
 an `input_digest` of selected current decision IDs/bodies, registry contracts,
 source fingerprints and required detail content. Supersede or selected constraint
 changes invalidate that record and dependent gates/consumers, even when plan text
@@ -260,21 +295,18 @@ gates/consumers, and preserves evidence and stable finding rounds. Contract/stat
 reads are cleared; same-context selected-section receipts survive, but only
 matching current hashes and plan identity can be reused.
 
-For content drift with unchanged plan record and selected constraints, already
-started work retains its target paths, execution context and progress. A verified
-record becomes `stopped` with `resume_status:checking`, `stop_reason:recheck_required`;
-it needs current checks, not repeated implementation. An active consumer becomes
-a recheck-required stop with its original implementing/checking/fixing resume
-state. The cursor routes the first such record whose prerequisites are verified.
-After predecessor checks and a new independent gate pass, resume the consumer
-from its saved state. A checkpoint’s concrete `next_action` survives prerequisite
-rechecking, a normal user stop, pending resolution and explicit resume. Blocker
+For target drift of unverified work with unchanged plan record and selected
+constraints, already started work retains its target paths, execution context and
+progress. An active record becomes a recheck-required stop with its original
+implementing/checking/fixing resume state; verified records are not reopened.
+Read current inputs and resume it from its saved state. A checkpoint’s concrete
+`next_action` survives this recheck, prerequisite invalidation, a normal user stop, pending resolution and explicit resume. Blocker
 instructions belong to `stop_reason`/`resume_status`; they do not overwrite that
 continuation. Checkpoint evidence records the action, and invalidation evidence
 retains the prior action. An explicit new `next_action` replaces it; entering a
-new checking/completion stage updates the normal action. Shared-file additions are not assumed safe: the full changed
-file is checked again, and actual failures still create findings and block
-consumption. Fresh checks exclude all known writers of the current target,
+new checking/completion stage updates the normal action. Shared-file additions are not assumed safe: the record that
+changed the file runs its checks over it, and actual failures create findings
+and block its completion. Fresh checks exclude all known writers of the current target,
 including downstream consumers who touched that same file. No semantic change
 classifier is used. Contract or selected-constraint changes still return the
 directly changed work to queued; never-started records also remain queued. Already-stopped records remain stopped
