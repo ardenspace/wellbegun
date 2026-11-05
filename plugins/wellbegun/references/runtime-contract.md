@@ -123,10 +123,14 @@ and `rule-candidates.md` whose last `→ <record ID>` names this record, each
 `{file,line,to,done}`; `done` means the line contains `✓ <record ID>`.
 A fresh record that is not yet verified also gets `notes.review_items`:
 `[{record,files}]` for verified fresh records whose target files changed after
-their acceptance. A whole-run packet adds `notes.open_forwards` (every forward
-line without its `✓`) and `notes.rechecks` (`[{record,reason}]` for current
-results accepted by a checks-only recheck). Lists hold at most 50 items; a
-truncated list adds `<name>_more` with the remaining count.
+their acceptance. A whole-run packet adds `notes.open_forwards` (every other
+forward line without its `✓`), `notes.rechecks` (`[{record,reason}]` for current
+results accepted by a checks-only recheck) and `notes.screenshot_reviews`
+(`[{record,command,files}]` for phase checks whose command starts with
+`screenshot review:`). Lists hold at most 50 items and all notes at most 3000
+bytes; a truncated list adds `<name>_more` with the dropped count. A target
+ID is ASCII letters, digits, `_.-` and ends with a letter, digit or `_`, so a
+sentence period after it is ignored.
 
 Verifier packets contain contract, target identity, execution location, command
 facts and reproducible unresolved findings. They omit implementer reports,
@@ -220,8 +224,10 @@ resumes with the same verifiers; replacing any starts a new counted round. A
 whole-run round started or accepted with a single verifier before 0.8.0 finishes
 or stays valid on the single path.
 
-After a contract change, a fresh record with an earlier independent ACCEPT and no
-unresolved finding may enter checking from queued or stopped with
+After a contract change, a fresh record with an earlier verified result holding a
+full independent ACCEPT (every perspective, for a parallel whole-run; failed
+rounds and earlier rechecks do not count) and no unresolved finding may enter
+checking from queued or stopped with
 `recheck_reason` (one line: why contract-visible behavior did not change). It
 needs implementer reads and checks only, no verifier or verdict. The result
 stores `recheck_reason`, and the whole-run packet lists it in `notes.rechecks`.

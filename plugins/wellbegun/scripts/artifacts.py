@@ -167,14 +167,23 @@ def accept_verdict(verdict, cid):
     return isinstance(verdict, dict) and verdict.get('status') == 'ACCEPT' and verdict.get('independent') is True and verdict.get('context_id') == cid
 
 
-def previously_accepted(root, rec):
-    """An earlier independent ACCEPT exists for this record (any round, any contract wording)."""
+def previously_accepted(root, rec, contract):
+    """An earlier verified result held a full independent ACCEPT (any contract wording).
+
+    Failed rounds, partial perspective accepts and rechecks never count."""
     for pointer in rec['evidence']:
         evidence = load_evidence(root, pointer)
-        if evidence.get('kind') != 'result':
+        if evidence.get('kind') != 'result' or evidence.get('recheck_reason'):
+            continue
+        # Results before 0.8.0 carry no outcome; only verified ones held an ACCEPT verdict.
+        if evidence.get('outcome', 'verified') != 'verified':
             continue
         verdicts = evidence.get('verdicts')
-        if (evidence.get('verdict') or {}).get('status') == 'ACCEPT' or verdicts and all(v.get('status') == 'ACCEPT' for v in verdicts.values()):
+        if isinstance(verdicts, dict):
+            candidates = list(verdicts.values()) if verdicts and set(verdicts) == set(perspectives_of(contract)) else []
+        else:
+            candidates = [evidence.get('verdict')]
+        if candidates and all(isinstance(v, dict) and v.get('context_id') and accept_verdict(v, v['context_id']) for v in candidates):
             return True
     return False
 
@@ -348,7 +357,7 @@ def validate_state(root, state, records, pdigest, drift=False):
                 need(all(state['records'][d]['status'] == 'verified' for d in contract['requires']), 'invalid_state', 'Verified prerequisite is not verified')
                 # A whole-run verified with one verdict before 0.8.0 stays valid.
                 if contract['grade'] == 'fresh' and result.get('recheck_reason'):
-                    need(previously_accepted(root, rec), 'invalid_evidence', 'Checks-only recheck lacks an earlier independent ACCEPT')
+                    need(previously_accepted(root, rec, contract), 'invalid_evidence', 'Checks-only recheck lacks an earlier independent ACCEPT')
                 elif contract['grade'] == 'fresh' and parallel(contract) and 'verdicts' in result:
                     verdicts = result.get('verdicts') or {}
                     need(isinstance(verdicts, dict) and set(verdicts) == set(perspectives_of(contract))
@@ -442,6 +451,7 @@ def changed_foundations(root, state, records):
 
 
 NOTES_CAP = 50
+NOTES_BUDGET = 3000
 FORWARD_FILES = ('deferred.md', 'rule-candidates.md')
 
 
@@ -453,11 +463,12 @@ def forward_lines(root):
         if not path.is_file():
             continue
         for raw in path.read_text(encoding='utf-8').splitlines():
-            targets = re.findall(r'→\s*([\w.-]+)', raw)
+            targets = re.findall(r'→\s*([A-Za-z0-9_.-]*[A-Za-z0-9_])', raw)
             if targets:
                 line = raw.strip()
                 to = targets[-1]
-                items.append({'file': name, 'line': line, 'to': to, 'done': ('✓ ' + to) in line})
+                done = re.search(r'✓\s*' + re.escape(to) + r'(?![A-Za-z0-9_-]|\.[A-Za-z0-9_])', line) is not None
+                items.append({'file': name, 'line': line, 'to': to, 'done': done})
     return items
 
 
@@ -480,13 +491,31 @@ def packet_notes(root, records, state, key):
     forwards = forward_lines(root)
     notes['forwarded'] = [item for item in forwards if item['to'] == key]
     if contract['kind'] == 'whole-run':
-        notes['open_forwards'] = [item for item in forwards if not item['done']]
+        # Lines already in `forwarded` are not repeated.
+        notes['open_forwards'] = [item for item in forwards if not item['done'] and item['to'] != key]
         notes['rechecks'] = rechecks(root, state)
+        notes['screenshot_reviews'] = screenshot_reviews(root, state, records)
     for name in list(notes):
         if len(notes[name]) > NOTES_CAP:
             notes[name + '_more'] = len(notes[name]) - NOTES_CAP
             notes[name] = notes[name][:NOTES_CAP]
+    # Notes must never push a packet past LIMIT: trim the longest list first.
+    while len(encoded(notes)) > NOTES_BUDGET:
+        name = max((n for n, v in notes.items() if isinstance(v, list) and v), key=lambda n: len(encoded(notes[n])))
+        notes[name].pop()
+        notes[name + '_more'] = notes.get(name + '_more', 0) + 1
     return notes
+
+
+def screenshot_reviews(root, state, records):
+    """Phase screenshot-review checks, for whole-run to look at again."""
+    items = []
+    for key, rec in state['records'].items():
+        if key in records and records[key]['kind'] == 'phase' and rec['current_result']:
+            for check in load_evidence(root, rec['current_result']).get('checks', []):
+                if check['command'].startswith('screenshot review:'):
+                    items.append({'record': key, 'command': check['command'], 'files': sorted(check['inputs'])})
+    return items
 
 
 def depends_on(records, consumer, producer):
@@ -990,7 +1019,7 @@ def apply_status(root, records, state, payload):
     if reason is not None:
         # Contract wording changed; contract-visible behavior did not: checks only.
         need(target_status == 'checking' and contract['grade'] == 'fresh' and isinstance(reason, str) and reason.strip(), 'invalid_input', 'recheck_reason needs a fresh record entering checking and a nonempty reason')
-        need(old in {'queued', 'stopped'} and previously_accepted(root, rec)
+        need(old in {'queued', 'stopped'} and previously_accepted(root, rec, contract)
              and not any(f['scope_id'] == contract['scope_id'] and f['status'] == 'unresolved' for f in state['findings'].values()),
              'invalid_transition', 'Checks-only recheck needs an earlier independent ACCEPT and no open findings')
     if target_status in {'implementing', 'checking', 'verified'} or old == 'stopped' and target_status == 'fixing':
@@ -1013,7 +1042,7 @@ def apply_status(root, records, state, payload):
         need(rec['pending'] is None, 'pending_mismatch', 'Resolve pending answer before resume')
         need(rec['workspace'] == str(root.parent.resolve()) and (payload.get('workspace', rec['workspace']) == rec['workspace']), 'workspace_drift', 'Resume workspace differs')
         need(rec['target'] and valid_snapshot(root, rec['target']), 'code_drift', 'Resume target changed; reconcile first')
-        ensure_reads(root, records, state, key, cid, 'verifier' if target_status == 'checking' and contract['grade'] == 'fresh' else 'implementer')
+        ensure_reads(root, records, state, key, cid, 'verifier' if target_status == 'checking' and contract['grade'] == 'fresh' and not reason else 'implementer')
         if target_status in {'implementing', 'fixing'}:
             register_implementer(root, records, state, key, cid)
         rec.update(stop_reason=None, resume_status=None)
@@ -1121,6 +1150,7 @@ def apply_status(root, records, state, payload):
         result = {'kind': 'result', 'record': key, 'scope_id': contract['scope_id'], 'contract_digest': digest(contract), 'input_digest': rec['input_digest'], 'target': rec['target'], 'round': rec['round'], 'checks': checks, 'verdict': payload.get('verdict'), 'finding_ids': list(rec['finding_ids'])}
         if many:
             result['verdicts'] = verdicts
+        result['outcome'] = target_status
         if rechecking:
             result['recheck_reason'] = rec['recheck']
             rec['recheck'] = None

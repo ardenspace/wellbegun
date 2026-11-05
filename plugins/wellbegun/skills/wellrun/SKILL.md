@@ -83,7 +83,7 @@ independent verdicts when the host cannot provide them.
 
 Every packet carries `notes`: `forwarded` lines meant for this record,
 `review_items` (verified foundations whose files changed since acceptance) for a
-fresh point, and at whole-run `open_forwards` and `rechecks`. Give them to the
+fresh point, and at whole-run `open_forwards`, `rechecks` and `screenshot_reviews`. Give them to the
 implementer or verifier with the packet; they are required reading, not receipts.
 
 Transitions generate run.md. Use `render` only to recover missing derived output;
@@ -164,7 +164,7 @@ UI rendering and observable states are valid acceptance checks. At phase integra
 
 Use temporary reproductions first. Keep permanent probes only for new regression value, preferably integrated by the implementer into existing tests. Rerun changed tests after integration. Zero to two new permanent probes per round is a target, not a quota or cap; clean up relevant probes at phase end.
 
-Phase integration is basic: the implementer runs e2e and the necessary regression and reviews screenshots of key states. Record the review as a check whose `files` are the screenshot paths and whose `command` is `screenshot review: <one-line note of anything odd>`; whole-run reads these. Its contract states what must compose. Fix owned failures under the relevant contract; do not reset finding rounds. Whole-run fresh review checks all release criteria, reusing valid results and running only missing or invalidated checks. Every required step, gate and review must pass before completion.
+Phase integration is basic: the implementer runs e2e and the necessary regression and reviews screenshots of key states. Record the review as a check whose `files` are the record's target files plus the screenshot paths and whose `command` is `screenshot review: <one-line note of anything odd>`; the whole-run packet lists these in `notes.screenshot_reviews` for its verifiers to look at again. Its contract states what must compose. Fix owned failures under the relevant contract; do not reset finding rounds. Whole-run fresh review checks all release criteria, reusing valid results and running only missing or invalidated checks. Every required step, gate and review must pass before completion.
 
 ## Legacy progress and checkpoint
 

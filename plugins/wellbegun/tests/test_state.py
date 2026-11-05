@@ -995,6 +995,49 @@ class RecheckTests(unittest.TestCase):
         tx(self.root, {'op': 'set', 'record': 'gate', 'status': 'fixing', 'context_id': 'v2', 'findings': [{'id': 'F1', 'clause': 'works', 'reproduction': 'r'}]})
         self.raises('invalid_transition', self.recheck, 'gate', 'fixer')
 
+    def finish_steps(self):
+        start(self.root); checking(self.root); record_success(self.root)
+        start(self.root, 'gate', 'independent', 'verifier'); record_success(self.root, 'gate', 'independent', True)
+        start(self.root, 'consumer'); checking(self.root, 'consumer'); record_success(self.root, 'consumer')
+
+    def enter_whole_run(self, verifiers):
+        for cid in verifiers.values():
+            read_all(self.root, 'whole-run', cid, 'verifier')
+        tx(self.root, {'op': 'set', 'record': 'whole-run', 'status': 'checking', 'context_id': next(iter(verifiers.values())), 'verifier_context_ids': verifiers, 'actor': None, 'workspace': str(self.root.parent.resolve()), 'target': ['src.py']})
+
+    def whole_run_result(self, status, verdicts, **extra):
+        payload = success_payload('whole-run', 'conductor')
+        payload.update(status=status, verdicts={p: {'status': 'ACCEPT', 'independent': True, 'context_id': cid} for p, cid in verdicts.items()}, **extra)
+        tx(self.root, payload)
+
+    def test_partial_whole_run_accept_cannot_recheck(self):
+        self.finish_steps()
+        self.enter_whole_run({'goal': 'v1', 'abuse': 'v2', 'money': 'v3'})
+        self.whole_run_result('fixing', {'goal': 'v1'}, recheck_perspectives=['abuse'])
+        self.change_contract('whole-run', 'Observable contract holds, worded more clearly.')
+        self.raises('invalid_transition', self.recheck, 'whole-run', 'worker')
+
+    def test_fixed_now_round_cannot_recheck_after_contract_change(self):
+        self.finish_steps()
+        self.enter_whole_run({'goal': 'v1', 'abuse': 'v2', 'money': 'v3'})
+        self.whole_run_result('fixing', {'goal': 'v1', 'abuse': 'v2', 'money': 'v3'}, recheck_perspectives=['abuse'])
+        self.change_contract('whole-run', 'Observable contract holds, worded more clearly.')
+        self.raises('invalid_transition', self.recheck, 'whole-run')
+
+    def test_stopped_whole_run_rechecks_with_implementer_reads(self):
+        self.finish_steps()
+        self.enter_whole_run({'goal': 'v1', 'abuse': 'v2', 'money': 'v3'})
+        self.whole_run_result('verified', {'goal': 'v1', 'abuse': 'v2', 'money': 'v3'})
+        self.change_contract('gate', 'Observable contract holds, worded more clearly.')
+        self.assertEqual(('stopped', 'checking'), (state(self.root)['records']['whole-run']['status'], state(self.root)['records']['whole-run']['resume_status']))
+        self.recheck('gate')
+        tx(self.root, success_payload('gate', 'rechecker'))
+        runtime.context(self.root, 'consumer', context_id='worker', remember=True)
+        tx(self.root, {**success_payload('consumer'), 'op': 'complete-basic'})
+        self.recheck('whole-run', 'rechecker-2', 'gate wording only')
+        tx(self.root, success_payload('whole-run', 'rechecker-2'))
+        self.assertEqual('complete', runtime.validate(self.root)['cursor'])
+
     def test_parallel_whole_run_recheck_skips_verifiers(self):
         start(self.root); checking(self.root); record_success(self.root)
         start(self.root, 'gate', 'independent', 'verifier'); record_success(self.root, 'gate', 'independent', True)

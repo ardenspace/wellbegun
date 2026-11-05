@@ -382,5 +382,42 @@ class LeanNotesTests(unittest.TestCase):
         self.assertNotIn('open_forwards', runtime.context(self.root, 'consumer', context_id='c')['notes'])
 
 
+    def test_many_forwards_keep_whole_run_readable(self):
+        lines = ''.join('- step-%d: 환불 정책과 좌석 점유 문제를 다음 검토에서 다시 확인해야 함 → whole-run\n' % i for i in range(80))
+        (self.root / 'deferred.md').write_text(lines)
+        packet = runtime.context(self.root, 'whole-run', context_id='final')
+        self.assertEqual('ok', packet['status'])
+        notes = packet['notes']
+        self.assertLessEqual(len(runtime.encoded(notes)), runtime.NOTES_BUDGET)
+        self.assertEqual(80, len(notes['forwarded']) + notes.get('forwarded_more', 0))
+        self.assertEqual([], notes['open_forwards'])
+        section = runtime.context(self.root, 'whole-run', 'contract', 'final')
+        self.assertEqual('ok', section['status'])
+
+    def test_forward_targets_ignore_sentence_period_and_prefix_ids(self):
+        (self.root / 'deferred.md').write_text('- a: refund later → consumer.\n- b: other → gate ✓ gate-2\n')
+        self.assertEqual(['consumer'], [i['to'] for i in runtime.context(self.root, 'consumer', context_id='c')['notes']['forwarded']])
+        gate = runtime.context(self.root, 'gate', context_id='v', audience='verifier')['notes']['forwarded']
+        self.assertEqual([False], [i['done'] for i in gate])
+
+    def test_whole_run_sees_phase_screenshot_reviews(self):
+        records, _ = runtime.plan(self.root)
+        phase = dict(records['consumer'], id='phase-1', kind='phase', scope_id='scope-phase', requires=['consumer'])
+        whole = dict(records['whole-run'], requires=['phase-1'])
+        write_plan(self.root, [records['producer'], records['gate'], records['consumer'], phase, whole])
+        tx(self.root, {'op': 'reconcile', 'reason': 'phase', 'approved_new_scopes': ['scope-phase'], 'approval': 'fixture'})
+        start(self.root); checking(self.root); record_success(self.root)
+        start(self.root, 'gate', 'independent', 'verifier'); record_success(self.root, 'gate', 'independent', True)
+        start(self.root, 'consumer'); checking(self.root, 'consumer'); record_success(self.root, 'consumer')
+        (self.root.parent / 'shot.png').write_bytes(b'png')
+        read_all(self.root, 'phase-1', 'integrator', 'implementer')
+        tx(self.root, {'op': 'set', 'record': 'phase-1', 'status': 'checking', 'context_id': 'integrator', 'actor': None, 'workspace': str(self.root.parent.resolve()), 'target': ['src.py']})
+        payload = success_payload('phase-1', 'integrator')
+        payload['checks'].append({'command': 'screenshot review: lobby list cut off', 'files': ['src.py', 'shot.png'], 'exit_status': 0, 'environment': {'device': 'sim'}, 'environment_known': True, 'external_state': False, 'covers': []})
+        tx(self.root, payload)
+        notes = runtime.context(self.root, 'whole-run', context_id='final')['notes']
+        self.assertEqual([{'record': 'phase-1', 'command': 'screenshot review: lobby list cut off', 'files': ['shot.png', 'src.py']}], notes['screenshot_reviews'])
+
+
 if __name__ == '__main__':
     unittest.main()
