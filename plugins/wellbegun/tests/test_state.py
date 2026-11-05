@@ -942,5 +942,75 @@ class StateTests(unittest.TestCase):
             self.assertEqual('ok', runtime.context(self.root, 'consumer', context_id='consumer-worker')['status'])
 
 
+
+class RecheckTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = create_project(self.temp.name, whole_run=True)
+
+    def raises(self, code, func, *args, **kwargs):
+        with self.assertRaises(runtime.Error) as caught:
+            func(*args, **kwargs)
+        self.assertEqual(code, caught.exception.code)
+
+    def change_contract(self, key, text):
+        records, _ = runtime.plan(self.root)
+        records[key]['completion'][0]['text'] = text
+        write_plan(self.root, list(records.values()))
+        tx(self.root, {'op': 'reconcile', 'reason': 'contract wording changed'})
+
+    def recheck(self, key, cid='rechecker', reason='wording only', **extra):
+        read_all(self.root, key, cid, 'implementer')
+        payload = {'op': 'set', 'record': key, 'status': 'checking', 'context_id': cid, 'recheck_reason': reason, **extra}
+        if state(self.root)['records'][key]['status'] == 'queued':
+            payload.update(actor=None, workspace=str(self.root.parent.resolve()), target=['src.py'])
+        return tx(self.root, payload)
+
+    def test_contract_change_recheck_with_reason_skips_verifier(self):
+        start(self.root); checking(self.root); record_success(self.root)
+        start(self.root, 'gate', 'independent', 'verifier'); record_success(self.root, 'gate', 'independent', True)
+        self.change_contract('gate', 'Observable contract holds, worded more clearly.')
+        self.assertEqual('queued', state(self.root)['records']['gate']['status'])
+        self.recheck('gate')
+        tx(self.root, success_payload('gate', 'rechecker'))
+        gate = state(self.root)['records']['gate']
+        self.assertEqual('verified', gate['status'])
+        self.assertEqual('wording only', runtime.load_evidence(self.root, gate['current_result'])['recheck_reason'])
+        runtime.validate(self.root)
+        notes = runtime.context(self.root, 'whole-run', context_id='final')['notes']
+        self.assertEqual([{'record': 'gate', 'reason': 'wording only'}], notes['rechecks'])
+
+    def test_recheck_reason_rejected_without_prior_accept(self):
+        start(self.root); checking(self.root); record_success(self.root)
+        self.raises('invalid_transition', self.recheck, 'gate')
+        self.assertEqual('queued', state(self.root)['records']['gate']['status'])
+
+    def test_recheck_reason_rejected_while_fixing(self):
+        start(self.root); checking(self.root); record_success(self.root)
+        start(self.root, 'gate', 'v1', 'verifier'); record_success(self.root, 'gate', 'v1', True)
+        self.change_contract('gate', 'Observable contract holds, worded more clearly.')
+        read_all(self.root, 'gate', 'v2', 'verifier')
+        tx(self.root, {'op': 'set', 'record': 'gate', 'status': 'checking', 'context_id': 'v2', 'verifier_context_id': 'v2', 'actor': None, 'workspace': str(self.root.parent.resolve()), 'target': ['src.py']})
+        tx(self.root, {'op': 'set', 'record': 'gate', 'status': 'fixing', 'context_id': 'v2', 'findings': [{'id': 'F1', 'clause': 'works', 'reproduction': 'r'}]})
+        self.raises('invalid_transition', self.recheck, 'gate', 'fixer')
+
+    def test_parallel_whole_run_recheck_skips_verifiers(self):
+        start(self.root); checking(self.root); record_success(self.root)
+        start(self.root, 'gate', 'independent', 'verifier'); record_success(self.root, 'gate', 'independent', True)
+        start(self.root, 'consumer'); checking(self.root, 'consumer'); record_success(self.root, 'consumer')
+        verifiers = {'goal': 'v1', 'abuse': 'v2', 'money': 'v3'}
+        for cid in verifiers.values():
+            read_all(self.root, 'whole-run', cid, 'verifier')
+        tx(self.root, {'op': 'set', 'record': 'whole-run', 'status': 'checking', 'context_id': 'v1', 'verifier_context_ids': verifiers, 'actor': None, 'workspace': str(self.root.parent.resolve()), 'target': ['src.py']})
+        payload = success_payload('whole-run', 'conductor')
+        payload['verdicts'] = {p: {'status': 'ACCEPT', 'independent': True, 'context_id': cid} for p, cid in verifiers.items()}
+        tx(self.root, payload)
+        self.change_contract('whole-run', 'Observable contract holds, worded more clearly.')
+        self.recheck('whole-run')
+        tx(self.root, success_payload('whole-run', 'rechecker'))
+        self.assertEqual('complete', runtime.validate(self.root)['cursor'])
+
+
 if __name__ == '__main__':
     unittest.main()
