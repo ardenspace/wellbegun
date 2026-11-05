@@ -62,11 +62,9 @@ class ContextTests(unittest.TestCase):
         contracts, pdigest = runtime.plan(self.root)
         runtime.ensure_reads(self.root, contracts, runtime.load_state(self.root, contracts, pdigest), 'second', 'worker', 'implementer')
 
-    def test_code_recheck_reuses_bodies_but_requires_current_state_read(self):
+    def test_inflight_code_recheck_reuses_bodies_but_requires_current_state_read(self):
         index = add_decision(self.root); self.attach(index)
         start(self.root)
-        payload = success_payload(); payload['op'] = 'complete-basic'
-        tx(self.root, payload)
         with (self.root.parent / 'src.py').open('a') as file:
             file.write('consumer = value + 1\n')
         tx(self.root, {'op': 'reconcile', 'reason': 'same-file code addition'})
@@ -78,6 +76,9 @@ class ContextTests(unittest.TestCase):
         self.assertNotIn('decision:theme.owner', packet['sections'])
         self.assertIn('state', packet['sections'])
         self.assertIn('contract', packet['sections'])
+        self.assertEqual(('stopped', 'implementing'), (state(self.root)['records']['producer']['status'], state(self.root)['records']['producer']['resume_status']))
+        tx(self.root, {'op': 'set', 'record': 'producer', 'status': 'implementing'})
+        payload = success_payload(); payload['op'] = 'complete-basic'
         tx(self.root, payload)
         self.assertEqual('complete', runtime.validate(self.root)['cursor'])
         fresh = runtime.context(self.root, 'producer', context_id='new-worker')

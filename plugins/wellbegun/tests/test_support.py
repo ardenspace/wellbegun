@@ -91,3 +91,19 @@ def add_decision(root, key='theme.owner', constraints='Use one owner.', legacy=F
     index = {'schema': 1, 'active': [{'key': key, 'id': 'D1'}], 'records': [item]}
     (root / 'decisions.index.json').write_text(json.dumps(index))
     return index
+
+
+def attach_decision(root, keys=('producer',)):
+    """Give records a selected decision input so a selected-input change can reopen them."""
+    index = add_decision(root)
+    records, _ = runtime.plan(root)
+    for key in keys:
+        records[key]['decisions'] = ['theme.owner']
+    write_plan(root, list(records.values()))
+    tx(root, {'op': 'reconcile', 'reason': 'selected input fixture'})
+    return index
+
+
+def change_decision(root, index, constraints):
+    index['records'][0]['constraints'] = constraints
+    (root / 'decisions.index.json').write_text(json.dumps(index))

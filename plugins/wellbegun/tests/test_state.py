@@ -8,7 +8,7 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
-from test_support import add_decision, checking, create_project, read_all, record_success, runtime, start, state, success_payload, tx, write_plan
+from test_support import add_decision, attach_decision, change_decision, checking, create_project, read_all, record_success, runtime, start, state, success_payload, tx, write_plan
 
 
 class StateTests(unittest.TestCase):
@@ -62,7 +62,7 @@ class StateTests(unittest.TestCase):
         self.assertEqual(1, state(root)['records']['gate']['round'])
         self.assertEqual('archived', tx(root, {'op': 'archive'})['status'])
 
-    def test_same_file_consumer_append_rechecks_without_reimplementation(self):
+    def test_same_file_consumer_append_needs_no_foundation_recheck(self):
         root = self.root
         (root.parent / 'check.py').write_text('from pathlib import Path\nns = {}\nexec(Path("src.py").read_text(), ns)\nassert ns["value"] == 1\n')
         def checked(record='producer', cid='worker', fresh=False):
@@ -81,31 +81,19 @@ class StateTests(unittest.TestCase):
             with (root.parent / 'src.py').open('a') as file:
                 file.write('consumer_' + str(iteration) + ' = value + 1\n')
             tx(root, {'op': 'checkpoint', 'record': 'consumer', 'reason': 'normal same-file addition', 'target': ['src.py']})
-            self.raises('code_drift', runtime.context, root)
-            tx(root, {'op': 'reconcile', 'reason': 'same-file target needs current checks'})
-            self.assertEqual('producer', state(root)['cursor'])
+            self.assertEqual('ok', runtime.context(root, context_id=owner)['status'])
             for key in ['producer', 'gate']:
-                self.assertEqual(('stopped', 'checking'), (state(root)['records'][key]['status'], state(root)['records'][key]['resume_status']))
-            consumer = state(root)['records']['consumer']
-            self.assertEqual(('stopped', 'implementing', owner), (consumer['status'], consumer['resume_status'], consumer['context_id']))
-            runtime.context(root, context_id='worker', remember=True); checked()
-            self.assertEqual('gate', state(root)['cursor'])
-            cid = 'v' + str(iteration + 2)
-            runtime.context(root, context_id='consumer-writer', audience='verifier', remember=True)
-            self.raises('not_independent', tx, root, {'op': 'set', 'record': 'gate', 'status': 'checking', 'context_id': 'consumer-writer', 'verifier_context_id': 'consumer-writer'})
-            runtime.context(root, context_id=cid, audience='verifier', remember=True)
-            tx(root, {'op': 'set', 'record': 'gate', 'status': 'checking', 'context_id': cid, 'verifier_context_id': cid})
-            checked('gate', cid, True)
+                self.assertEqual('verified', state(root)['records'][key]['status'])
             self.assertEqual('consumer', state(root)['cursor'])
-            runtime.context(root, context_id=owner, remember=True)
-            tx(root, {'op': 'set', 'record': 'consumer', 'status': 'implementing'})
         checked('consumer', owner)
         self.assertEqual('complete', runtime.validate(root)['cursor'])
-        self.assertEqual(5, state(root)['records']['producer']['round'])
-        self.assertEqual(5, state(root)['records']['gate']['round'])
+        self.assertEqual(1, state(root)['records']['producer']['round'])
+        self.assertEqual(1, state(root)['records']['gate']['round'])
         self.assertEqual({}, state(root)['findings'])
 
     def test_g1_009_concrete_action_survives_same_file_recheck_and_saved_stops(self):
+        # The consumer's own target drift still forces a recheck; verified
+        # foundations stay verified.
         action = 'Implement render_consumer() output escaping; parsing is done, keep existing parser.'
         for stopped in [None, 'user interruption', 'pending decision']:
             with self.subTest(stopped=stopped), tempfile.TemporaryDirectory() as directory:
@@ -129,8 +117,8 @@ class StateTests(unittest.TestCase):
                     file.write('def parse_consumer(text):\n    return value + int(text)\n')
                 tx(root, {'op': 'reconcile', 'reason': 'normal same-file addition'})
                 consumer = state(root)['records']['consumer']
-                self.assertEqual('run contract checks', state(root)['records']['producer']['next_action'])
-                self.assertEqual('run contract checks', state(root)['records']['gate']['next_action'])
+                self.assertEqual('verified', state(root)['records']['producer']['status'])
+                self.assertEqual('verified', state(root)['records']['gate']['status'])
                 self.assertEqual(action, consumer['next_action'])
                 invalidation = runtime.load_evidence(root, consumer['evidence'][-1])
                 self.assertEqual(action, invalidation['previous_next_action'])
@@ -138,29 +126,23 @@ class StateTests(unittest.TestCase):
                     self.assertEqual(stopped, consumer['stop_reason'])
                 if stopped == 'pending decision':
                     self.assertEqual('blocked', state(root)['cursor'])
-                    self.raises('pending_mismatch', checking, root)
+                    self.raises('pending_mismatch', tx, root, {'op': 'set', 'record': 'consumer', 'status': 'implementing'})
                     (root / 'pending/Q.json').write_text(json.dumps({'question': 'Continue renderer?', 'answer': 'Continue with current owner.', 'decision_key': 'theme.owner'}))
                     tx(root, {'op': 'resolve-pending', 'record': 'consumer', 'decision_key': 'theme.owner'})
                     self.assertEqual(action, state(root)['records']['consumer']['next_action'])
                 result = subprocess.run(['python3', 'check.py'], cwd=root.parent, capture_output=True)
                 self.assertEqual(0, result.returncode, result.stderr.decode())
-                runtime.context(root, 'producer', context_id='worker', remember=True)
-                payload = success_payload(); payload['op'] = 'complete-basic'
-                payload['checks'][0]['exit_status'] = result.returncode
-                tx(root, payload)
-                runtime.context(root, 'gate', context_id='v2', audience='verifier', remember=True)
-                tx(root, {'op': 'set', 'record': 'gate', 'status': 'checking', 'context_id': 'v2', 'verifier_context_id': 'v2'})
-                record_success(root, 'gate', 'v2', True)
                 packet = runtime.context(root, 'consumer', context_id='consumer-writer', remember=True)
                 self.assertEqual(action, packet['sections']['state']['next_action'])
                 tx(root, {'op': 'set', 'record': 'consumer', 'status': 'implementing'})
                 self.assertEqual(action, state(root)['records']['consumer']['next_action'])
                 self.assertIn('def parse_consumer', (root.parent / 'src.py').read_text())
                 payload = success_payload('consumer', 'consumer-writer'); payload['op'] = 'complete-basic'
+                payload['checks'][0]['exit_status'] = result.returncode
                 tx(root, payload)
                 self.assertEqual('complete', runtime.validate(root)['cursor'])
 
-    def test_same_file_foundation_break_runs_checks_and_remains_blocked(self):
+    def test_same_file_foundation_break_is_caught_by_consumer_checks(self):
         root = self.root
         (root.parent / 'check.py').write_text('from pathlib import Path\nns = {}\nexec(Path("src.py").read_text(), ns)\nassert ns["value"] == 1\n')
         self.basic(); start(root, 'gate', 'v1', 'verifier'); record_success(root, 'gate', 'v1', True)
@@ -168,22 +150,19 @@ class StateTests(unittest.TestCase):
         with (root.parent / 'src.py').open('a') as file:
             file.write('consumer = value + 1\nvalue = 0\n')
         tx(root, {'op': 'checkpoint', 'record': 'consumer', 'reason': 'consumer changed shared file', 'target': ['src.py']})
-        tx(root, {'op': 'reconcile', 'reason': 'same-file target needs current checks'})
-        for attempt in range(3):
-            runtime.context(root, 'producer', context_id='worker', remember=True)
-            checking(root)
-            result = subprocess.run(['python3', 'check.py'], cwd=root.parent, capture_output=True)
-            self.assertNotEqual(0, result.returncode)
-            payload = success_payload(); payload['checks'][0]['exit_status'] = result.returncode
-            self.raises('failed_checks', tx, root, payload)
-            payload.update(status='fixing', findings=[{'id': 'SAME-FILE-FOUNDATION', 'clause': 'works', 'reproduction': 'python3 check.py fails: value must remain 1'}])
-            tx(root, payload)
-            self.raises('blocked', tx, root, {'op': 'set', 'record': 'gate', 'status': 'checking', 'context_id': 'v2', 'verifier_context_id': 'v2'})
-        self.assertEqual('round_cap', state(root)['records']['producer']['stop_reason'])
-        tx(root, {'op': 'reconcile', 'reason': 'repeated reconcile must not reset failure cap'})
-        self.assertEqual('round_cap', state(root)['records']['producer']['stop_reason'])
+        tx(root, {'op': 'reconcile', 'reason': 'verified foundations are not reopened by code edits'})
+        for key in ['producer', 'gate']:
+            self.assertEqual('verified', state(root)['records'][key]['status'])
+        runtime.context(root, 'consumer', context_id='worker', remember=True)
+        checking(root, 'consumer')
+        result = subprocess.run(['python3', 'check.py'], cwd=root.parent, capture_output=True)
+        self.assertNotEqual(0, result.returncode)
+        payload = success_payload('consumer'); payload['checks'][0]['exit_status'] = result.returncode
+        self.raises('failed_checks', tx, root, payload)
+        payload.update(status='fixing', findings=[{'id': 'SAME-FILE-FOUNDATION', 'clause': 'works', 'reproduction': 'python3 check.py fails: value must remain 1'}])
+        tx(root, payload)
         self.assertEqual('unresolved', state(root)['findings']['SAME-FILE-FOUNDATION']['status'])
-        self.assertEqual('blocked', state(root)['cursor'])
+        self.assertEqual('fixing', state(root)['records']['consumer']['status'])
 
     def test_g1_008_stopped_consumer_preserves_ownership_without_bypassing_blockers(self):
         root = self.root
@@ -213,11 +192,10 @@ class StateTests(unittest.TestCase):
             self.assertEqual('verified', state(root)['records'][key]['status'])
             self.assertEqual(1, state(root)['records'][key]['round'])
         runtime.context(root, 'consumer', context_id='worker', remember=True)
-        # Foundation drift is still a blocker while downstream ownership is stopped.
+        # A verified foundation's code change is not a blocker; later checks own it.
         foundation = root.parent / 'src.py'; original = foundation.read_text()
         foundation.write_text('broken foundation\n')
-        self.raises('code_drift', runtime.context, root, 'consumer', context_id='worker')
-        self.raises('code_drift', tx, root, {'op': 'set', 'record': 'consumer', 'status': 'implementing'})
+        self.assertEqual('ok', runtime.context(root, 'consumer', context_id='worker')['status'])
         foundation.write_text(original)
         tx(root, {'op': 'set', 'record': 'consumer', 'status': 'implementing'})
         pending = root / 'pending'; pending.mkdir()
@@ -240,7 +218,8 @@ class StateTests(unittest.TestCase):
         self.assertEqual({}, state(root)['findings'])
         self.assertEqual('archived', tx(root, {'op': 'archive'})['status'])
 
-    def test_direct_basic_is_atomic_and_blocks_pending_and_foundation_drift(self):
+    def test_direct_basic_is_atomic_and_blocks_pending_and_foundation_input_drift(self):
+        index = attach_decision(self.root)
         start(self.root)
         payload = success_payload(); payload['op'] = 'complete-basic'
         bad = copy.deepcopy(payload); bad['checks'][0]['exit_status'] = 1
@@ -257,9 +236,11 @@ class StateTests(unittest.TestCase):
         start(self.root, 'consumer')
         (self.root.parent / 'src.py').write_text('broken foundation\n')
         payload = success_payload('consumer'); payload.update(op='complete-basic', target=['src.py'])
+        change_decision(self.root, index, 'Foundation constraint revised.')
         self.raises('code_drift', tx, self.root, payload)
 
     def test_successful_rechecks_preserve_rounds_without_spending_failure_cap(self):
+        index = attach_decision(self.root)
         for cycle in range(5):
             if state(self.root)['records']['producer']['status'] == 'stopped':
                 read_all(self.root)
@@ -269,11 +250,11 @@ class StateTests(unittest.TestCase):
             tx(self.root, payload)
             self.assertEqual(cycle + 1, state(self.root)['records']['producer']['round'])
             if cycle < 4:
-                (self.root.parent / 'src.py').write_text(str(cycle))
+                change_decision(self.root, index, 'Revision ' + str(cycle))
                 tx(self.root, {'op': 'reconcile', 'reason': 'new intentional foundation revision'})
-        (self.root.parent / 'src.py').write_text('fail')
+        change_decision(self.root, index, 'Failing revision')
         tx(self.root, {'op': 'reconcile', 'reason': 'new failing candidate'})
-        read_all(self.root)
+        start(self.root)
         for attempt in range(3):
             checking(self.root)
             self.fail()
@@ -466,7 +447,7 @@ class StateTests(unittest.TestCase):
         tx(self.root, {'op': 'reconcile', 'reason': 'unrelated update'})
         self.assertEqual('verified', state(self.root)['records']['producer']['status'])
 
-    def test_g1_006_prerequisite_drift_blocks_checking_and_completion(self):
+    def test_g1_006_only_selected_input_drift_blocks_checking_and_completion(self):
         for boundary in ['checking', 'verified']:
             for changed in ['source', 'check', 'decision', 'registry', 'runtime']:
                 with self.subTest(boundary=boundary, changed=changed), tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as patches:
@@ -496,6 +477,19 @@ class StateTests(unittest.TestCase):
                         (root / 'registry.index.json').write_text(json.dumps(registry))
                     else:
                         patches.enter_context(patch.object(runtime, 'runtime_environment', return_value={'python': 'changed', 'platform': 'changed'}))
+                    if changed in {'source', 'check', 'runtime'}:
+                        # Code, check-input and runtime changes do not reopen verified prerequisites.
+                        self.assertEqual('ok', runtime.context(root, 'consumer', context_id='consumer-worker')['status'])
+                        runtime.validate(root)
+                        if boundary == 'checking':
+                            checking(root, 'consumer', 'consumer-worker')
+                        else:
+                            payload = success_payload('consumer', 'consumer-worker')
+                            payload['checks'][0]['files'] = ['consumer.py', 'check.py']
+                            tx(root, payload)
+                            self.assertEqual('verified', state(root)['records']['consumer']['status'])
+                        self.assertEqual('verified', state(root)['records']['gate']['status'])
+                        continue
                     before = (root / 'state.json').read_bytes()
                     self.raises('code_drift', runtime.context, root, 'consumer', context_id='consumer-worker')
                     self.raises('code_drift', runtime.validate, root)
@@ -518,6 +512,7 @@ class StateTests(unittest.TestCase):
                     root = create_project(directory)
                     contracts, _ = runtime.plan(root); contracts['gate']['kind'] = kind
                     write_plan(root, list(contracts.values())); tx(root, {'op': 'reconcile', 'reason': 'supported fresh scope'})
+                    index = attach_decision(root)
                     start(root); checking(root); record_success(root)
                     (root.parent / 'review.py').write_text('review_target = True\n')
                     read_all(root, 'gate', 'reviewer', 'verifier')
@@ -526,7 +521,7 @@ class StateTests(unittest.TestCase):
                         tx(root, {'op': 'set', 'record': 'gate', 'status': 'fixing', 'context_id': 'reviewer', 'findings': [{'id': 'repair', 'clause': 'works', 'reproduction': 'Review needs repair'}]})
                         read_all(root, 'gate', 'fixer', 'implementer')
                         read_all(root, 'gate', 'new-reviewer', 'verifier')
-                    (root.parent / 'src.py').write_text('value = 4\n')
+                    change_decision(root, index, 'Producer constraint revised.')
                     before = (root / 'state.json').read_bytes()
                     if boundary == 'checking':
                         self.raises('code_drift', tx, root, {'op': 'set', 'record': 'gate', 'status': 'checking', 'context_id': 'fixer', 'verifier_context_id': 'new-reviewer'})
@@ -569,16 +564,16 @@ class StateTests(unittest.TestCase):
                 self.assertEqual('complete', state(root)['cursor'])
 
     def test_g1_007_pending_gate_can_resolve_after_upstream_invalidation(self):
+        index = attach_decision(self.root)
         self.basic(); start(self.root, 'gate', 'reviewer', 'verifier')
         pending = self.root / 'pending'; pending.mkdir()
         question = pending / 'Q.json'; question.write_text(json.dumps({'question': 'Which gate constraint?'}))
         tx(self.root, {'op': 'set', 'record': 'gate', 'status': 'stopped', 'reason': 'await L decision', 'pending': 'pending/Q.json'})
-        (self.root.parent / 'src.py').write_text('value = 3\n')
+        change_decision(self.root, index, 'Upstream constraint revised.')
         tx(self.root, {'op': 'reconcile', 'reason': 'upstream drift while gate decision pending'})
-        self.assertEqual('stopped', state(self.root)['records']['producer']['status'])
-        self.assertEqual('checking', state(self.root)['records']['producer']['resume_status'])
+        self.assertEqual('queued', state(self.root)['records']['producer']['status'])
         self.assertEqual('stopped', state(self.root)['records']['gate']['status'])
-        self.raises('pending_mismatch', checking, self.root)
+        self.raises('pending_mismatch', start, self.root)
         question.write_text(json.dumps({'question': 'Which gate constraint?', 'answer': 'Use current approved owner.', 'decision_key': 'theme.owner'}))
         tx(self.root, {'op': 'resolve-pending', 'record': 'gate', 'decision_key': 'theme.owner'})
         self.basic()
@@ -756,38 +751,25 @@ class StateTests(unittest.TestCase):
             self.assertEqual(0, runtime.main(['render', '--root', str(self.root)]))
         self.assertTrue((self.root / 'HANDOFF.md').exists())
 
-    def test_code_and_test_drift_invalidates_all_dependents(self):
+    def test_check_input_change_keeps_verified_records(self):
         self.basic(); start(self.root, 'gate', 'v', 'verifier'); record_success(self.root, 'gate', 'v', True)
         (self.root.parent / 'check.py').write_text('assert 1 == 1\n')
-        self.raises('code_drift', runtime.context, self.root)
+        self.assertEqual('ok', runtime.context(self.root)['status'])
         tx(self.root, {'op': 'reconcile', 'reason': 'test input changed'})
-        self.assertEqual('producer', state(self.root)['cursor'])
-        self.assertTrue(all(state(self.root)['records'][key]['resume_status'] == 'checking' for key in ['producer', 'gate']))
-        self.assertEqual('queued', state(self.root)['records']['consumer']['status'])
+        self.assertEqual('consumer', state(self.root)['cursor'])
+        self.assertTrue(all(state(self.root)['records'][key]['status'] == 'verified' for key in ['producer', 'gate']))
         self.assertEqual(1, state(self.root)['scopes']['scope-producer']['round'])
 
-    def test_runtime_drift_revalidates_prerequisites_before_consumer_dispatch(self):
+    def test_runtime_change_keeps_verified_prerequisites(self):
         self.basic(); start(self.root, 'gate', 'v1', 'verifier'); record_success(self.root, 'gate', 'v1', True)
         changed_runtime = {**runtime.runtime_environment(), 'python': 'different-runtime'}
         with patch.object(runtime, 'runtime_environment', return_value=changed_runtime):
             packet = runtime.sections(self.root, runtime.plan(self.root)[0], state(self.root), 'gate', 'verifier')
             self.assertFalse(packet['state']['checks'][0]['reusable'])
-            self.raises('code_drift', runtime.validate, self.root)
-            self.raises('code_drift', start, self.root, 'consumer')
-
-            tx(self.root, {'op': 'reconcile', 'reason': 'runtime environment changed'})
-            self.assertEqual('producer', state(self.root)['cursor'])
-            self.assertTrue(all(state(self.root)['records'][key]['status'] == 'stopped' for key in ['producer', 'gate']))
-            self.assertTrue(all(state(self.root)['records'][key]['resume_status'] == 'checking' for key in ['producer', 'gate']))
-            self.assertEqual('queued', state(self.root)['records']['consumer']['status'])
-            self.raises('blocked', start, self.root, 'consumer')
-
-            read_all(self.root); checking(self.root); record_success(self.root)
-            read_all(self.root, 'gate', 'v2', 'verifier')
-            tx(self.root, {'op': 'set', 'record': 'gate', 'status': 'checking', 'context_id': 'v2', 'verifier_context_id': 'v2'})
-            record_success(self.root, 'gate', 'v2', True)
+            runtime.validate(self.root)
             start(self.root, 'consumer')
             self.assertEqual('implementing', state(self.root)['records']['consumer']['status'])
+            self.assertTrue(all(state(self.root)['records'][key]['status'] == 'verified' for key in ['producer', 'gate']))
 
     def test_dirty_target_not_identified_by_git_head(self):
         start(self.root)
@@ -940,6 +922,24 @@ class StateTests(unittest.TestCase):
         result = runtime.transition(self.root, revision, {'op': 'archive'})
         self.assertEqual('archived', result['status'])
         self.assertFalse((self.root / '.archive.json').exists())
+
+    def verify_producer_and_gate(self):
+        start(self.root); checking(self.root); record_success(self.root)
+        start(self.root, 'gate', 'independent', 'verifier'); record_success(self.root, 'gate', 'independent', True)
+
+    def test_verified_record_survives_later_code_change(self):
+        self.verify_producer_and_gate()
+        (self.root.parent / 'src.py').write_text('value = 2\n')
+        self.assertEqual('ok', runtime.context(self.root, 'consumer', context_id='consumer-worker')['status'])
+        runtime.validate(self.root)
+        self.assertEqual('verified', state(self.root)['records']['producer']['status'])
+        self.assertEqual('verified', state(self.root)['records']['gate']['status'])
+
+    def test_verified_record_survives_runtime_change(self):
+        self.verify_producer_and_gate()
+        with patch.object(runtime, 'runtime_environment', return_value={'python': '0.0', 'platform': 'other'}):
+            runtime.validate(self.root)
+            self.assertEqual('ok', runtime.context(self.root, 'consumer', context_id='consumer-worker')['status'])
 
 
 if __name__ == '__main__':

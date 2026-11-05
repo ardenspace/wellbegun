@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 
-from test_support import checking, create_project, read_all, record_success, runtime, start, state, tx, write_plan
+from test_support import attach_decision, change_decision, checking, create_project, read_all, record_success, runtime, start, state, tx, write_plan
 
 
 def fail(root, record='producer', fid='F1', cid='worker'):
@@ -80,18 +80,20 @@ class RoundLimitTests(unittest.TestCase):
 
     def test_reopened_scope_extends_by_its_allowance(self):
         root = self.project(producer=2)
+        index = attach_decision(root)
         start(root); checking(root); record_success(root)
-        (root.parent / 'src.py').write_text('value = 2\n')
+        change_decision(root, index, 'Revised foundation constraint.')
         tx(root, {'op': 'reconcile', 'reason': 'new intentional foundation revision'})
         self.assertEqual(3, state(root)['scopes']['scope-producer']['limit'])
 
     def test_state_without_allowance_reads_as_three(self):
         root = self.project()
+        index = attach_decision(root)
         start(root); checking(root); record_success(root)
         data = state(root)
         del data['scopes']['scope-producer']['allowance']
         (root / 'state.json').write_text(json.dumps(data))
-        (root.parent / 'src.py').write_text('value = 2\n')
+        change_decision(root, index, 'Revised foundation constraint.')
         tx(root, {'op': 'reconcile', 'reason': 'new intentional foundation revision'})
         self.assertEqual(4, state(root)['scopes']['scope-producer']['limit'])
 

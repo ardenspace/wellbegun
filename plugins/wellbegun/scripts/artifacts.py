@@ -378,26 +378,11 @@ def drifted(root, state, records=None, only=None):
             continue
         if rec['input_digest'] and key in records and rec['input_digest'] != digest(selected_sections(root, records[key])):
             changed.append(key)
-        if rec['target'] and not valid_snapshot(root, rec['target']):
+        # A verified record is invalidated only by its selected contract inputs.
+        # Later code changes are caught by the changing record's own checks and
+        # by later fresh review points (see changed_foundations).
+        if rec['status'] != 'verified' and rec['target'] and not valid_snapshot(root, rec['target']):
             changed.append(key)
-        if rec['status'] == 'verified':
-            for pointer in [rec['current_result']] if rec['current_result'] else []:
-                evidence = load_evidence(root, pointer)
-                for check in evidence.get('checks', []):
-                    if check['runtime'] != runtime_environment():
-                        changed.append(key)
-                    if not valid_snapshot(root, check['inputs']):
-                        changed_files = {p for p, h in check['inputs'].items() if file_digest(inside(root.parent, p)) != h}
-                        owned = set()
-                        for consumer, active in state['records'].items():
-                            if active['status'] in ACTIVE | {'verified', 'stopped'} and depends_on(records, consumer, key):
-                                owned.update(active['target'] or {})
-                        # Stopping preserves declared ownership; target drift and pending
-                        # dispatch checks remain independent blockers.
-                        # Broad regression facts become stale; expected downstream edits
-                        # do not revoke an unchanged foundation contract.
-                        if not changed_files <= owned:
-                            changed.append(key)
     return sorted(set(changed))
 
 
