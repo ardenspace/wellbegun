@@ -277,7 +277,7 @@ def changed_files(root, snap):
 
 
 # Recovery hints carried in error details, so a rejected caller knows the next call.
-RECONCILE_NEXT = 'Send {"op":"reconcile","reason":...}, re-read with context, then set the record to checking again.'
+RECONCILE_NEXT = 'Send {"op":"reconcile","reason":...}, re-read with context, then set each stopped record to its saved resume_status (queued records start again).'
 CHECKPOINT_NEXT = 'Send {"op":"checkpoint","record":...,"reason":...,"target":[...]} with the current files, then set checking.'
 
 
@@ -393,12 +393,15 @@ def validate_state(root, state, records, pdigest, drift=False):
         if state['cursor'] == 'complete':
             no_pending_dispatch(root, state)
             changed = drifted(root, state, records)
-            need(not changed, 'code_drift', 'Completion cannot retain invalid input/evidence success', records=changed)
+            need(not changed, 'code_drift', 'Completion cannot retain invalid input/evidence success', records=changed, next=RECONCILE_NEXT)
     return state
 
 
 def load_state(root, records, pdigest, drift=False):
-    return validate_state(root, read_json(root / 'state.json'), records, pdigest, drift)
+    state = read_json(root / 'state.json')
+    if isinstance(state, dict) and isinstance(state.get('records'), dict):
+        migrate_identities(root, state, records)
+    return validate_state(root, state, records, pdigest, drift)
 
 
 def independent(records, state, key, cid, current_target=False):
@@ -642,8 +645,48 @@ def input_identity(root, rec):
 
 
 def same_inputs(root, rec, contract):
+    current = input_identity(root, contract)
+    if rec.get('input_identity'):
+        return rec['input_identity'] == current
     # Records started before 0.8.2 stored the digest with locations included.
-    return rec['input_digest'] in {input_identity(root, contract), digest(selected_sections(root, contract))}
+    return rec['input_digest'] in {current, digest(selected_sections(root, contract))}
+
+
+def migrate_identities(root, state, records):
+    """Give pre-0.8.2 records a location-free identity while their stored digest still matches.
+
+    `input_digest` stays as stored: result evidence repeats it. Returns whether anything changed."""
+    changed = False
+    for key, rec in state['records'].items():
+        if key not in records or not rec.get('input_digest') or rec.get('input_identity'):
+            continue
+        try:
+            current = input_identity(root, records[key])
+            legacy = digest(selected_sections(root, records[key]))
+            locations = registry_locations(root, records[key])
+        except Error:
+            continue
+        if rec['input_digest'] in {current, legacy}:
+            rec['input_identity'] = current
+            rec.setdefault('registry_locations', locations)
+            changed = True
+    return changed
+
+
+def persist_identities(root, locked=False):
+    """Store migrated identities before any later registry edit can hide the match."""
+    if not locked:
+        with writer_lock(root):
+            return persist_identities(root, True)
+    if not (root / 'state.json').exists():
+        return
+    try:
+        records, _ = plan(root)
+        state = read_json(root / 'state.json')
+        if isinstance(state, dict) and isinstance(state.get('records'), dict) and migrate_identities(root, state, records):
+            atomic_json(root / 'state.json', state)
+    except Error:
+        pass  # The normal load reports the real problem.
 
 
 def registry_locations(root, contract):
@@ -651,7 +694,7 @@ def registry_locations(root, contract):
 
 
 def bind_inputs(root, rec, contract):
-    rec['input_digest'] = input_identity(root, contract)
+    rec['input_digest'] = rec['input_identity'] = input_identity(root, contract)
     rec['registry_locations'] = registry_locations(root, contract)
 
 
@@ -704,6 +747,8 @@ def receipt(state, key, cid, audience, name, value):
 
 def context(root, record=None, section=None, context_id=None, audience='implementer', remember=False, _locked=False):
     root = Path(root).resolve()
+    if not _locked and not (root / '.archive.json').exists():
+        persist_identities(root)
     if remember and not _locked:
         with writer_lock(root):
             return context(root, record, section, context_id, audience, True, True)
@@ -918,7 +963,7 @@ def invalidate(root, state, records, changed, reason, content_changed=(), preser
             bind_inputs(root, rec, records[key])
             rec.update(current_result=None, current_verifier=None, round_inflight=False)
         else:
-            rec.update(status='queued', next_action='recheck invalidated contract', stop_reason=None, resume_status=None, target=None, input_digest=None, current_result=None, current_verifier=None, round_inflight=False)
+            rec.update(status='queued', next_action='recheck invalidated contract', stop_reason=None, resume_status=None, target=None, input_digest=None, input_identity=None, current_result=None, current_verifier=None, round_inflight=False)
     # Content-addressed selected facts survive a code-only recheck in the same
     # context. Fresh state and contract reads are still required before dispatch.
     state['reads'] = {cid: {name: token for name, token in saved.items()
@@ -962,6 +1007,7 @@ def transition(root, expected_revision, payload):
         if payload['op'] == 'archive':
             return archive(root, expected_revision, payload)
         need(not (root / '.archive.json').exists(), 'archive_in_progress', 'Resume the recorded archive before any other transition')
+        persist_identities(root, locked=True)
         records, pdigest = plan(root)
         op = payload['op']
         if op == 'init':
@@ -1215,8 +1261,9 @@ def apply_status(root, records, state, payload):
                     other = state['records'][item['record']]
                     if item['record'] != key:
                         other['reviewed_target'] = {'for': digest(other['target']), 'snapshot': snapshot(root, list(other['target']))}
-                for item in moved_registry(root, state, records):
-                    if item['record'] != key:
+                # The verifier saw current locations, including this record's own.
+                for item in moved_registry(root, state, records) + [{'record': key, 'registry': k, 'location': v} for k, v in registry_locations(root, contract).items()]:
+                    if isinstance(state['records'][item['record']].get('registry_locations'), dict):
                         state['records'][item['record']]['registry_locations'][item['registry']] = item['location']
         else:
             if not many:
@@ -1339,6 +1386,7 @@ def render(root, handoff=False, expected_revision=None, _locked=False):
     need(not (root / '.archive.json').exists(), 'archive_in_progress', 'Archive in progress; derived files are frozen')
     if not _locked:
         with writer_lock(root):
+            persist_identities(root, locked=True)
             records, pdigest = plan(root)
             state = load_state(root, records, pdigest)
             need(expected_revision is None or expected_revision == state['revision'], 'stale_revision', 'Render preference expected revision differs', revision=state['revision'])

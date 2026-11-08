@@ -54,10 +54,10 @@ The three pipeline artifacts (`begin.md`, `spec.md`, `plan.md`) carry `status: d
 
 ## Status
 
-Current release: **0.8.2** — [release notes](docs/releases/0.8.2.md).
+Current release: **0.8.3** — [release notes](docs/releases/0.8.3.md).
 
 Lean runtime and skill integration passed independent foundation and final review,
-with 88 runtime/lifecycle tests at that review (99 as of 0.7.0, 143 as of 0.8.2) and bounded fixed-copy comparisons. The matched
+with 88 runtime/lifecycle tests at that review (99 as of 0.7.0, 145 as of 0.8.3) and bounded fixed-copy comparisons. The matched
 step observations show lower document inputs and fewer model roles; fixed order,
 caches and evidence reuse prevent a general execution-time or cost claim.
 Seven broader Flutter failures on baseline-identical dogfood code remain reported

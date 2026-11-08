@@ -304,7 +304,10 @@ source fingerprints and required detail content. A registry entry's `location` i
 excluded from `input_digest`; the record keeps `registry_locations`, and a verified
 record whose entry later lists a different location appears in the next fresh
 packet's `notes.review_items` as `{record,registry,location}` until a fresh ACCEPT.
-Digests stored before 0.8.2 (with locations) are still accepted. Supersede or selected constraint
+A record started before 0.8.2 stored only the digest with locations; the first
+helper call (context, transition or render) that still finds it matching stores a
+location-free `input_identity` beside it. Edit a registry location only after
+that call; an edit made first cannot be told apart from a contract change. Supersede or selected constraint
 changes invalidate that record and dependent gates/consumers, even when plan text
 and source code did not change. Unrelated ledger history is excluded. Source
 references that no longer match first require selective mapping review; then

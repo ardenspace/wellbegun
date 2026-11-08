@@ -473,6 +473,46 @@ class StateTests(unittest.TestCase):
         checking(self.root); record_success(self.root)
         self.assertEqual('verified', state(self.root)['records']['producer']['status'])
 
+    def make_081_state(self):
+        saved = state(self.root)
+        records, _ = runtime.plan(self.root)
+        for key, rec in saved['records'].items():
+            if rec['input_digest']:
+                rec['input_digest'] = runtime.digest(runtime.selected_sections(self.root, records[key]))
+                rec.pop('input_identity', None); rec.pop('registry_locations', None)
+                if rec['current_result']:
+                    evidence = runtime.load_evidence(self.root, rec['current_result'])
+                    evidence['input_digest'] = rec['input_digest']
+                    pointer = runtime.write_evidence(self.root, evidence)
+                    rec['evidence'] = [pointer if e == rec['current_result'] else e for e in rec['evidence']]
+                    rec['current_result'] = pointer
+        (self.root / 'state.json').write_text(json.dumps(saved))
+
+    def test_081_verified_record_survives_location_change_after_one_helper_call(self):
+        entries = self.select_theme_registry()
+        self.basic(); start(self.root, 'gate', 'v', 'verifier'); record_success(self.root, 'gate', 'v', True)
+        self.make_081_state()
+        runtime.context(self.root)
+        self.assertIn('input_identity', state(self.root)['records']['producer'])
+        entries['entries'][0]['location'] = 'src.py, shared/save.py'
+        (self.root / 'registry.index.json').write_text(json.dumps(entries))
+        runtime.context(self.root)
+        self.assertEqual('verified', state(self.root)['records']['producer']['status'])
+        self.assertEqual('verified', state(self.root)['records']['gate']['status'])
+
+    def test_completed_cycle_drift_names_next_step(self):
+        records, _ = runtime.plan(self.root)
+        records['producer']['registry'] = []
+        attach_decision(self.root)
+        self.basic(); start(self.root, 'gate', 'v', 'verifier'); record_success(self.root, 'gate', 'v', True)
+        start(self.root, 'consumer'); checking(self.root, 'consumer'); record_success(self.root, 'consumer')
+        self.assertEqual('complete', state(self.root)['cursor'])
+        index = json.loads((self.root / 'decisions.index.json').read_text())
+        change_decision(self.root, index, 'Use two owners.')
+        with self.assertRaises(runtime.Error) as caught:
+            runtime.context(self.root)
+        self.assertIn('reconcile', caught.exception.details['next'])
+
     def test_missing_verification_command_names_expected_and_given(self):
         start(self.root); checking(self.root)
         payload = success_payload()
