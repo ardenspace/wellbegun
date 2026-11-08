@@ -271,6 +271,16 @@ def valid_snapshot(root, snap):
     return snapshot(root, list(snap)) == snap
 
 
+def changed_files(root, snap):
+    current = snapshot(root, list(snap))
+    return sorted(p for p, h in snap.items() if current.get(p) != h)
+
+
+# Recovery hints carried in error details, so a rejected caller knows the next call.
+RECONCILE_NEXT = 'Send {"op":"reconcile","reason":...}, re-read with context, then set the record to checking again.'
+CHECKPOINT_NEXT = 'Send {"op":"checkpoint","record":...,"reason":...,"target":[...]} with the current files, then set checking.'
+
+
 def runtime_environment():
     return {'python': platform.python_version(), 'platform': platform.platform()}
 
@@ -428,7 +438,7 @@ def drifted(root, state, records=None, only=None):
     for key, rec in state['records'].items():
         if only is not None and key not in only:
             continue
-        if rec['input_digest'] and key in records and rec['input_digest'] != digest(selected_sections(root, records[key])):
+        if rec['input_digest'] and key in records and not same_inputs(root, rec, records[key]):
             changed.append(key)
         # A verified record is invalidated only by its selected contract inputs.
         # Later code changes are caught by the changing record's own checks and
@@ -503,7 +513,7 @@ def packet_notes(root, records, state, key):
     contract, current = records[key], state['records'][key]
     notes = {}
     if contract['grade'] == 'fresh' and current['status'] != 'verified':
-        notes['review_items'] = changed_foundations(root, state, records)
+        notes['review_items'] = changed_foundations(root, state, records) + moved_registry(root, state, records)
     forwards = forward_lines(root, set(records))
     notes['forwarded'] = [item for item in forwards if item['to'] == key]
     if contract['kind'] == 'whole-run':
@@ -553,7 +563,7 @@ def current_prerequisites(root, records, state, key):
     visit(key)
     need(all(state['records'][dep]['status'] == 'verified' for dep in required), 'blocked', 'Predecessor/gate is not verified')
     changed = drifted(root, state, records, required)
-    need(not changed, 'code_drift', 'Predecessor/gate inputs changed; reconcile before checking or completion', records=changed)
+    need(not changed, 'code_drift', 'Predecessor/gate inputs changed; reconcile before checking or completion', records=changed, next=RECONCILE_NEXT)
 
 
 def mailbox_files(root):
@@ -618,6 +628,47 @@ def selected_sections(root, rec):
     return result
 
 
+def input_identity(root, rec):
+    """Digest of the selected inputs that bind a record.
+
+    A registry entry's `location` only lists where the owner lives; listing a
+    new file there does not change the contract. A location-only change goes
+    to the next fresh review point (moved_registry) instead of reopening."""
+    sections = selected_sections(root, rec)
+    for name, item in sections.items():
+        if name.startswith('registry:'):
+            sections[name] = {k: v for k, v in item.items() if k != 'location'}
+    return digest(sections)
+
+
+def same_inputs(root, rec, contract):
+    # Records started before 0.8.2 stored the digest with locations included.
+    return rec['input_digest'] in {input_identity(root, contract), digest(selected_sections(root, contract))}
+
+
+def registry_locations(root, contract):
+    return {key: registry(root, key).get('location') for key in contract['registry']}
+
+
+def bind_inputs(root, rec, contract):
+    rec['input_digest'] = input_identity(root, contract)
+    rec['registry_locations'] = registry_locations(root, contract)
+
+
+def moved_registry(root, state, records):
+    """Verified records whose registry entries now list a different location."""
+    items = []
+    for key, contract in records.items():
+        rec = state['records'].get(key)
+        if not (rec and rec['status'] == 'verified' and isinstance(rec.get('registry_locations'), dict)):
+            continue
+        current = registry_locations(root, contract)
+        for regkey, location in current.items():
+            if regkey in rec['registry_locations'] and rec['registry_locations'][regkey] != location:
+                items.append({'record': key, 'registry': regkey, 'location': location})
+    return items
+
+
 def pages(value):
     # Budget each character *after* fragment escaping in the outer response JSON.
     # PAGE leaves room for section names, receipt and response metadata under LIMIT.
@@ -666,7 +717,7 @@ def context(root, record=None, section=None, context_id=None, audience='implemen
     for current in state['records'].values():
         check_pending(root, current)
     changed = drifted(root, state)
-    need(not changed, 'code_drift', 'Target or check inputs changed; reconcile/checkpoint before dispatch', records=changed)
+    need(not changed, 'code_drift', 'Target or check inputs changed; reconcile/checkpoint before dispatch', records=changed, next=RECONCILE_NEXT)
     key = record or state['cursor']
     if key in {'complete', 'blocked'}:
         return {'status': key, 'revision': state['revision'], 'blockers': [k for k, r in state['records'].items() if r['status'] == 'stopped']}
@@ -863,8 +914,9 @@ def invalidate(root, state, records, changed, reason, content_changed=(), preser
         if rec['status'] == 'stopped':
             # Invalidating success never answers a question or releases a saved stop.
             # Reconcile acknowledges current identities, not a successful check.
-            rec.update(target=snapshot(root, list(rec['target'])), input_digest=digest(selected_sections(root, records[key])),
-                       current_result=None, current_verifier=None, round_inflight=False)
+            rec.update(target=snapshot(root, list(rec['target'])))
+            bind_inputs(root, rec, records[key])
+            rec.update(current_result=None, current_verifier=None, round_inflight=False)
         else:
             rec.update(status='queued', next_action='recheck invalidated contract', stop_reason=None, resume_status=None, target=None, input_digest=None, current_result=None, current_verifier=None, round_inflight=False)
     # Content-addressed selected facts survive a code-only recheck in the same
@@ -897,7 +949,7 @@ def check_results(root, state, rec, contract, payload):
         for check in old['checks']:
             need(reusable_check(root, check) and check['environment'] == payload.get('environment'), 'stale_evidence', 'Evidence inputs/environment changed or cannot be identified')
             need(set(rec['target']) <= set(check['inputs']), 'stale_evidence', 'Evidence target differs')
-            need(check['command'] in contract['verification'], 'stale_evidence', 'Command is not required by current contract')
+            need(check['command'] in contract['verification'], 'stale_evidence', 'Command is not required by current contract', given=check['command'], expected=contract['verification'])
             checks.append({**check, 'covers': reused['covers'], 'reused_from': pointer})
     return checks
 
@@ -940,7 +992,7 @@ def transition(root, expected_revision, payload):
                 content_changed = set(changed)
                 preserve_progress = {key for key, rec in old.items() if key in records
                                      and rec['contract_digest'] == digest(records[key])
-                                     and rec['input_digest'] == digest(selected_sections(root, records[key]))
+                                     and same_inputs(root, rec, records[key])
                                      and rec['target'] and any(snapshot(root, list(rec['target'])).values())}
                 updated = {}
                 for key, contract in records.items():
@@ -990,7 +1042,7 @@ def transition(root, expected_revision, payload):
                 check_pending(root, rec)
                 if 'target' in payload:
                     need(rec['status'] in {'implementing', 'fixing'}, 'invalid_transition', 'Only implementation/fixing may update target at checkpoint')
-                    need(rec['input_digest'] == digest(selected_sections(root, records[payload['record']])), 'input_drift', 'Required constraints changed; reconcile before implementation')
+                    need(same_inputs(root, rec, records[payload['record']]), 'input_drift', 'Required constraints changed; reconcile before implementation')
                     register_implementer(root, records, state, payload['record'], payload.get('context_id', rec['context_id']))
                     rec['target'] = snapshot(root, payload['target'])
                 rec['next_action'] = payload.get('next_action', rec['next_action'])
@@ -1048,7 +1100,7 @@ def apply_status(root, records, state, payload):
         no_pending_dispatch(root, state)
         current_prerequisites(root, records, state, key)
     if old == 'queued':
-        need(not drifted(root, state), 'code_drift', 'Existing target/check inputs changed; reconcile first')
+        need(not drifted(root, state), 'code_drift', 'Existing target/check inputs changed; reconcile first', records=drifted(root, state), next=RECONCILE_NEXT)
         fields(payload, ['target', 'actor', 'workspace', 'context_id'], 'start')
         need(payload['actor'] is None or isinstance(payload['actor'], str), 'invalid_input', 'actor must be string or null')
         need(payload['workspace'] == str(root.parent.resolve()), 'workspace_drift', 'Workspace must match actual project root')
@@ -1057,13 +1109,13 @@ def apply_status(root, records, state, payload):
         snap = snapshot(root, payload['target'])
         need(any(v is not None for v in snap.values()), 'invalid_input', 'Target must identify at least one existing input file')
         rec.update(target=snap, actor=payload['actor'], workspace=payload['workspace'], context_id=cid)
-        rec['input_digest'] = digest(selected_sections(root, contract))
+        bind_inputs(root, rec, contract)
         if contract['kind'] == 'step':
             register_implementer(root, records, state, key, cid)
     if old == 'stopped':
         need(rec['pending'] is None, 'pending_mismatch', 'Resolve pending answer before resume')
         need(rec['workspace'] == str(root.parent.resolve()) and (payload.get('workspace', rec['workspace']) == rec['workspace']), 'workspace_drift', 'Resume workspace differs')
-        need(rec['target'] and valid_snapshot(root, rec['target']), 'code_drift', 'Resume target changed; reconcile first')
+        need(rec['target'] and valid_snapshot(root, rec['target']), 'code_drift', 'Resume target changed; reconcile first', files=changed_files(root, rec['target']) if rec['target'] else [], next=RECONCILE_NEXT)
         ensure_reads(root, records, state, key, cid, 'verifier' if target_status == 'checking' and contract['grade'] == 'fresh' and not reason else 'implementer')
         if target_status in {'implementing', 'fixing'}:
             register_implementer(root, records, state, key, cid)
@@ -1079,7 +1131,7 @@ def apply_status(root, records, state, payload):
             need(isinstance(question['question'], str) and question['question'].strip(), 'pending_mismatch', 'Pending question must have a body')
             rec['pending'] = {'path': payload['pending'], 'sha256': file_digest(path), 'question_digest': digest(question['question'])}
     if target_status == 'checking' and (old != 'stopped' or not rec['round_inflight']):
-        need(rec['input_digest'] == digest(selected_sections(root, contract)), 'input_drift', 'Required constraints changed; reconcile before checking')
+        need(same_inputs(root, rec, contract), 'input_drift', 'Required constraints changed; reconcile before checking')
         if old in {'implementing', 'fixing'}:
             register_implementer(root, records, state, key, cid)
         scope = state['scopes'][contract['scope_id']]
@@ -1088,7 +1140,7 @@ def apply_status(root, records, state, payload):
             return
         if payload.get('target'):
             rec['target'] = snapshot(root, payload['target'])
-        need(valid_snapshot(root, rec['target']), 'code_drift', 'Update actual target at checkpoint before checking')
+        need(valid_snapshot(root, rec['target']), 'code_drift', 'Target files changed since the last checkpoint', files=changed_files(root, rec['target']), next=CHECKPOINT_NEXT)
         if 'recheck' in rec or reason:
             rec['recheck'] = reason
         if contract['grade'] == 'fresh' and reason:
@@ -1132,8 +1184,8 @@ def apply_status(root, records, state, payload):
             rec['verifier_contexts'].append(verifier); rec['current_verifier'] = verifier
     if target_status in {'verified', 'fixing'} and old == 'checking':
         need(rec['round_inflight'], 'invalid_state', 'No in-flight checking round')
-        need(valid_snapshot(root, rec['target']), 'code_drift', 'Checked target changed')
-        need(rec['input_digest'] == digest(selected_sections(root, contract)), 'input_drift', 'Required constraints changed; reconcile before result')
+        need(valid_snapshot(root, rec['target']), 'code_drift', 'Checked target changed after checking started', files=changed_files(root, rec['target']), next=RECONCILE_NEXT)
+        need(same_inputs(root, rec, contract), 'input_drift', 'Required constraints changed; reconcile before result')
         # A round started on the single-verifier path before 0.8.0 finishes on it.
         rechecking = bool(rec.get('recheck'))
         many = contract['grade'] == 'fresh' and parallel(contract) and rec['current_verifier'] is None and not rechecking
@@ -1144,7 +1196,9 @@ def apply_status(root, records, state, payload):
         clauses = {c['id'] for c in contract['completion']}
         if target_status == 'verified':
             need(checks and all(c['exit_status'] == 0 for c in checks), 'failed_checks', 'Successful checks required')
-            need(set(contract['verification']) <= {c['command'] for c in checks}, 'failed_checks', 'Required verification commands missing')
+            given = [c['command'] for c in checks]
+            need(set(contract['verification']) <= set(given), 'failed_checks', 'Required verification commands missing; commands must match the contract text exactly',
+                 missing=[v for v in contract['verification'] if v not in given], given=given)
             need(clauses <= {clause for c in checks for clause in c['covers']}, 'failed_checks', 'Completion clauses not covered')
             need(all(state['records'][dep]['status'] == 'verified' for dep in contract['requires']), 'blocked', 'Predecessor/gate invalidated')
             if contract['grade'] == 'fresh' and not many and not rechecking:
@@ -1161,6 +1215,9 @@ def apply_status(root, records, state, payload):
                     other = state['records'][item['record']]
                     if item['record'] != key:
                         other['reviewed_target'] = {'for': digest(other['target']), 'snapshot': snapshot(root, list(other['target']))}
+                for item in moved_registry(root, state, records):
+                    if item['record'] != key:
+                        state['records'][item['record']]['registry_locations'][item['registry']] = item['location']
         else:
             if not many:
                 need(isinstance(payload.get('findings'), list) and payload['findings'], 'invalid_input', 'REJECT needs stable finding and reproduction')

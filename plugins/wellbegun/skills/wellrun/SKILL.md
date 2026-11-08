@@ -26,7 +26,7 @@ First reconcile explicit session approval with artifact status; update a stale d
 
 ## Start briefing and ownership
 
-Reuse the stored mode and existing user approval. On a first run with no choice, use **companion**: ask only for newly discovered L/XL decisions. **Autonomous** applies when authorized: choose the most reversible provisional option within that authority and report it. Neither mode permits passing a broken contract or exceeding execution permissions.
+Reuse the stored mode and existing user approval. On a first run with no choice, use **companion**: ask only for newly discovered L/XL decisions. Without such a decision, a pending question or a stop the runtime reports, go straight on to the next record; finishing a record is not a reason to pause or ask. **Autonomous** applies when authorized: choose the most reversible provisional option within that authority and report it. Neither mode permits passing a broken contract or exceeding execution permissions.
 
 Briefly show likely decision stops and required verification boundaries. Install only the check contract's lint/test rules and hooks the spec selected for this project; do not invent a foundation or hook step at briefing.
 
@@ -96,7 +96,9 @@ paths before a stop. On resume, bootstrap the current packet and explicitly set
 the saved `resume_status` with the actual context identity. For detected drift,
 use `op:reconcile,reason`, restore any reopened prerequisites, then resume the
 preserved consumer action. Code edits never reopen verified records; only
-contract or selected decision/registry changes do. The record that edits a file
+contract or selected decision/registry changes do. A registry entry's `location`
+is not part of that identity: keep `location` current when a shared file is added or
+moved; the change reaches the next fresh point as a review item instead of reopening. The record that edits a file
 runs current checks over it; do not repeat completed implementation merely
 because a hash changed. Pending and unresolved caps remain blockers. Read only “Checkpoint,
 drift, and recovery” for an unfamiliar recovery case.
@@ -125,7 +127,7 @@ If contracts are missing or contradictory, constraints surprise you, the same ca
 
 Gates are the plan's fresh points for new shared foundations and for the first money/auth connection. A gate names its producers and the consumers blocked until it passes; independently verify the shared contract or data flow before the first consumer, even if its producer is S/M. Start a gate with `target` listing the shared contract files its producers built (protocol, schema, shared server modules): the helper watches exactly those files for `notes.review_items`, and an empty or unrelated target silently disables that warning.
 
-On failure, fix the producer before consumers proceed. A later change to a verified gate's files is not invalidation: the changing record's checks cover it, and the next fresh point receives it through `notes.review_items`. Only a change to the gate's contract or selected decisions/registry reopens it. Record newly discovered dependencies and gates in the plan under existing authority unless they change an expensive decision or authorized scope.
+On failure, fix the producer before consumers proceed. A later change to a verified gate's files is not invalidation: the changing record's checks cover it, and the next fresh point receives it through `notes.review_items`. Only a change to the gate's contract or selected decisions/registry (its `contract`, `constraints` or `decisions`; not `location`) reopens it. Record newly discovered dependencies and gates in the plan under existing authority unless they change an expensive decision or authorized scope.
 
 ## Verification and completion
 

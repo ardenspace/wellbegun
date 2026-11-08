@@ -438,6 +438,63 @@ class StateTests(unittest.TestCase):
         self.assertEqual('stopped', state(self.root)['records']['gate']['status'])
         self.assertEqual('checking', state(self.root)['records']['gate']['resume_status'])
 
+    def select_theme_registry(self):
+        entries = {'schema': 1, 'entries': [{'key': 'theme', 'status': 'active', 'location': 'src.py', 'contract': 'one owner', 'constraints': 'share state', 'decisions': []}]}
+        (self.root / 'registry.index.json').write_text(json.dumps(entries))
+        records, _ = runtime.plan(self.root); records['producer']['registry'] = ['theme']
+        write_plan(self.root, list(records.values())); tx(self.root, {'op': 'reconcile', 'reason': 'selected registry'})
+        return entries
+
+    def test_registry_location_only_change_keeps_verified_records(self):
+        entries = self.select_theme_registry()
+        self.basic(); start(self.root, 'gate', 'v', 'verifier'); record_success(self.root, 'gate', 'v', True)
+        entries['entries'][0]['location'] = 'src.py, shared/save.py'
+        (self.root / 'registry.index.json').write_text(json.dumps(entries))
+        runtime.context(self.root)
+        tx(self.root, {'op': 'reconcile', 'reason': 'registry lists a new file'})
+        self.assertEqual('verified', state(self.root)['records']['producer']['status'])
+        self.assertEqual('verified', state(self.root)['records']['gate']['status'])
+
+    def test_registry_location_change_with_contract_change_still_invalidates(self):
+        entries = self.select_theme_registry()
+        self.basic()
+        entries['entries'][0].update(location='shared/save.py', contract='two owners')
+        (self.root / 'registry.index.json').write_text(json.dumps(entries))
+        self.raises('code_drift', runtime.context, self.root)
+
+    def test_input_digest_from_before_082_is_still_accepted(self):
+        self.select_theme_registry()
+        start(self.root)
+        saved = state(self.root)
+        records, _ = runtime.plan(self.root)
+        saved['records']['producer']['input_digest'] = runtime.digest(runtime.selected_sections(self.root, records['producer']))
+        del saved['records']['producer']['registry_locations']
+        (self.root / 'state.json').write_text(json.dumps(saved))
+        checking(self.root); record_success(self.root)
+        self.assertEqual('verified', state(self.root)['records']['producer']['status'])
+
+    def test_missing_verification_command_names_expected_and_given(self):
+        start(self.root); checking(self.root)
+        payload = success_payload()
+        payload['checks'][0]['command'] = 'python3 check.py -v'
+        with self.assertRaises(runtime.Error) as caught:
+            tx(self.root, payload)
+        self.assertEqual('failed_checks', caught.exception.code)
+        self.assertEqual(['python3 check.py'], caught.exception.details['missing'])
+        self.assertEqual(['python3 check.py -v'], caught.exception.details['given'])
+
+    def test_target_changed_while_checking_names_files_and_recovery(self):
+        start(self.root); checking(self.root)
+        (self.root.parent / 'src.py').write_text('value = 9\n')
+        with self.assertRaises(runtime.Error) as caught:
+            record_success(self.root)
+        self.assertEqual('code_drift', caught.exception.code)
+        self.assertEqual(['src.py'], caught.exception.details['files'])
+        self.assertIn('reconcile', caught.exception.details['next'])
+        tx(self.root, {'op': 'reconcile', 'reason': 'edited target during checking'})
+        read_all(self.root); checking(self.root); record_success(self.root)
+        self.assertEqual('verified', state(self.root)['records']['producer']['status'])
+
     def test_g1_002_unrelated_decision_history_does_not_invalidate_success(self):
         self.basic()
         index = add_decision(self.root)

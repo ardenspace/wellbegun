@@ -4,7 +4,9 @@ Python 3.9+ and its standard library are required. Run the plugin's
 `scripts/artifacts.py` by absolute path; `--root` is the project's `.wellbegun`
 directory. The project root is its parent. Git and subagent APIs are optional.
 The five commands emit one JSON object: success exit 0, errors exit 2 with
-`status:error`, `code`, `message`, and bounded details. `overflow` is an explicit
+`status:error`, `code`, `message`, and bounded details. Drift errors name the
+changed `files` or `records` and a `next` recovery call; a missing verification
+command lists `missing` and `given` (commands match the contract text exactly). `overflow` is an explicit
 successful routing response, never a truncated contract. No command returns logs.
 
 ## Minimal runnable input
@@ -126,7 +128,8 @@ record (arrows in prose, such as `src→worker`, are ignored), each
 A fresh record that is not yet verified also gets `notes.review_items`:
 `[{record,files}]` for verified fresh records whose target files changed after
 their acceptance, or since a later fresh record last accepted them with a
-verifier (a checks-only recheck does not count). A whole-run packet adds `notes.open_forwards` (every other
+verifier (a checks-only recheck does not count), plus `{record,registry,location}`
+for registry location changes (see input identity below). A whole-run packet adds `notes.open_forwards` (every other
 forward line without its `✓`), `notes.rechecks` (`[{record,reason}]` for current
 results accepted by a checks-only recheck) and `notes.screenshot_reviews`
 (`[{record,command,files}]` for phase checks whose command starts with
@@ -297,7 +300,11 @@ comparison with actual answer/decision evidence, not permission to ignore it.
 Target drift of a record that is not verified, plan-contract drift, or effective
 selected decision/registry drift blocks context/dispatch. Each started record and its completion evidence preserve
 an `input_digest` of selected current decision IDs/bodies, registry contracts,
-source fingerprints and required detail content. Supersede or selected constraint
+source fingerprints and required detail content. A registry entry's `location` is
+excluded from `input_digest`; the record keeps `registry_locations`, and a verified
+record whose entry later lists a different location appears in the next fresh
+packet's `notes.review_items` as `{record,registry,location}` until a fresh ACCEPT.
+Digests stored before 0.8.2 (with locations) are still accepted. Supersede or selected constraint
 changes invalidate that record and dependent gates/consumers, even when plan text
 and source code did not change. Unrelated ledger history is excluded. Source
 references that no longer match first require selective mapping review; then

@@ -430,6 +430,22 @@ class LeanNotesTests(unittest.TestCase):
         (self.root.parent / 'src.py').write_text('value = 3\n')
         self.assertEqual(['gate', 'consumer'], [i['record'] for i in runtime.context(self.root, 'whole-run', context_id='final')['notes']['review_items']])
 
+    def test_registry_location_change_becomes_review_item_once(self):
+        entries = {'schema': 1, 'entries': [{'key': 'theme', 'status': 'active', 'location': 'src.py', 'contract': 'one owner', 'constraints': 'share state', 'decisions': []}]}
+        (self.root / 'registry.index.json').write_text(json.dumps(entries))
+        records, _ = runtime.plan(self.root)
+        records['producer']['registry'] = ['theme']
+        records['consumer'].update(kind='phase', grade='fresh')
+        write_plan(self.root, list(records.values()))
+        tx(self.root, {'op': 'reconcile', 'reason': 'selected registry'})
+        self.verify_foundation()
+        entries['entries'][0]['location'] = 'src.py, shared/save.py'
+        (self.root / 'registry.index.json').write_text(json.dumps(entries))
+        items = runtime.context(self.root, 'consumer', context_id='v2', audience='verifier')['notes']['review_items']
+        self.assertEqual([{'record': 'producer', 'registry': 'theme', 'location': 'src.py, shared/save.py'}], items)
+        start(self.root, 'consumer', 'v2', 'verifier'); record_success(self.root, 'consumer', 'v2', True)
+        self.assertEqual([], runtime.context(self.root, 'whole-run', context_id='final')['notes']['review_items'])
+
     def test_forward_targets_ignore_sentence_period_and_prefix_ids(self):
         (self.root / 'deferred.md').write_text('- a: refund later → consumer.\n- b: other → gate ✓ gate-2\n')
         self.assertEqual(['consumer'], [i['to'] for i in runtime.context(self.root, 'consumer', context_id='c')['notes']['forwarded']])
